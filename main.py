@@ -7,6 +7,15 @@ import webview
 import subprocess
 import shutil
 
+if sys.platform == "win32":
+    try:
+        if sys.stdout:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stderr:
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def get_free_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
