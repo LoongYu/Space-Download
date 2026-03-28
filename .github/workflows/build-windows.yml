@@ -22,10 +22,30 @@ jobs:
         run: pip install pyinstaller streamlit pywebview deep-translator
 
       - name: Build exe
-        run: pyinstaller main.py --name=SpaceDownload-${{ github.event.inputs.release_name }} --windowed --onefile --noconfirm --clean "--add-data=yt_dlp_gui.py;." --collect-all=streamlit --collect-all=webview --collect-all=yt_dlp --exclude-module=matplotlib --exclude-module=notebook --exclude-module=test
+        run: >
+          pyinstaller main.py
+          --name=SpaceDownload-${{ github.event.inputs.release_name }}
+          --windowed --onedir --noconfirm --clean
+          "--add-data=yt_dlp_gui.py;."
+          --collect-all=streamlit
+          --collect-all=webview
+          --collect-all=yt_dlp
+          --hidden-import=blinker
+          --hidden-import=packaging
+          --hidden-import=tenacity
+          --hidden-import=toml
+          --hidden-import=cachetools
+          --hidden-import=gitpython
+          --hidden-import=pyarrow
+          --exclude-module=matplotlib
+          --exclude-module=notebook
+          --exclude-module=test
+
+      - name: Zip dist folder
+        run: Compress-Archive -Path "dist/SpaceDownload-${{ github.event.inputs.release_name }}" -DestinationPath "dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
-          path: dist/SpaceDownload-${{ github.event.inputs.release_name }}.exe
+          path: dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip
