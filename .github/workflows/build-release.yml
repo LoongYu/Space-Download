@@ -3,7 +3,7 @@ name: Build Release
 on:
   push:
     tags:
-      - 'v*'
+      - '[0-9]*'
   workflow_dispatch:
 
 jobs:
@@ -14,6 +14,7 @@ jobs:
 
       - name: Set version
         id: version
+        shell: bash
         run: echo "VERSION=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
       - name: Set up Python
@@ -30,9 +31,10 @@ jobs:
           pyinstaller main.py --name=SpaceDownload --windowed --onedir --noconfirm --clean "--add-data=yt_dlp_gui.py;." --collect-all=streamlit --collect-all=webview --collect-all=yt_dlp --exclude-module=matplotlib --exclude-module=notebook --exclude-module=test
 
       - name: Rename output
+        shell: bash
         run: |
-          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ steps.version.outputs.VERSION }}"
-          Compress-Archive -Path "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}" -DestinationPath "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.zip"
+          mv dist/SpaceDownload "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}"
+          cd dist && zip -r "SpaceDownload-${{ steps.version.outputs.VERSION }}.zip" "SpaceDownload-${{ steps.version.outputs.VERSION }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
