@@ -44,8 +44,10 @@ jobs:
       - name: Zip dist folder
         run: Compress-Archive -Path "dist/SpaceDownload-${{ github.event.inputs.release_name }}" -DestinationPath "dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe
-          path: dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}.zip"
+          gh release delete-asset "${{ github.event.inputs.release_name }}" "$asset" -y 2>$null
+          gh release upload "${{ github.event.inputs.release_name }}" "dist/$asset"
