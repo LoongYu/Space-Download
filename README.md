@@ -22,14 +22,18 @@ Space Download 是一个基于 yt-dlp 的桌面视频下载工具，提供简洁
 - 📝 自定义文件命名模板
 - 🎯 多种视频质量选择
 - 📦 支持多种输出格式 (mp4, mkv, webm, flv)
+- 🚀 分片并发下载 (8线程)
 
-## 安装
+## 下载
 
-### macOS
+从 [Releases](https://github.com/LoongYu/Space-Download/releases) 下载最新版本：
 
-从 [Releases](https://github.com/LoongYu/Space-Download/releases) 下载最新版本的 `SpaceDownload.app`。
+| 平台 | 下载 |
+|------|------|
+| macOS | SpaceDownload-YYYYMMDDNN.dmg |
+| Windows | SpaceDownload-YYYYMMDDNN.zip |
 
-### 从源码运行
+## 从源码运行
 
 ```bash
 # 克隆仓库
@@ -42,6 +46,22 @@ pip install streamlit pywebview deep-translator
 # 运行
 python main.py
 ```
+
+## 构建
+
+### macOS DMG
+
+```bash
+# 构建 dmg 并创建 Release
+python3.11 build_release.py YYYYMMDDNN
+
+# 仅构建 dmg
+python3.11 build_app.py dmg
+```
+
+### Windows EXE
+
+在 GitHub Actions 手动触发 `Build Windows` workflow，输入 release 名称。
 
 ## 使用方法
 
