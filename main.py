@@ -34,15 +34,53 @@ def is_port_open(port):
 def run_app():
     if getattr(sys, "frozen", False):
         base_path = sys._MEIPASS
-        candidates = [
-            "/opt/homebrew/bin/python3.11",
-            shutil.which("python3.11"),
-            shutil.which("python3"),
-        ]
-        python_exe = next((p for p in candidates if p and os.path.exists(p)), None)
-        if not python_exe:
-            print("❌ 未找到可用的 Python 解释器（需要 python3.11）")
-            sys.exit(1)
+        if sys.platform == "win32":
+            # Windows: sys.exeutable 是 frozen exe，需要找系统里真正的 Python
+            candidates = [
+                shutil.which("python"),
+                shutil.which("python3"),
+                shutil.which("python3.11"),
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Python", "Python311", "python.exe"),
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Python", "Python312", "python.exe"),
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Python", "Python313", "python.exe"),
+                os.path.join(os.environ.get("PROGRAMFILES", ""), "Python311", "python.exe"),
+                os.path.join(os.environ.get("PROGRAMFILES", ""), "Python312", "python.exe"),
+                os.path.join(os.environ.get("PROGRAMFILES", ""), "Python313", "python.exe"),
+            ]
+            python_exe = None
+            for c in candidates:
+                if c and os.path.exists(c):
+                    try:
+                        ver = subprocess.check_output([c, "--version"], text=True, stderr=subprocess.STDOUT).strip()
+                        if "Python 3." in ver:
+                            python_exe = c
+                            break
+                    except Exception:
+                        continue
+            if not python_exe:
+                try:
+                    import ctypes
+
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        "请先安装 Python 3.11+，安装时勾选 Add to PATH。\n下载地址: https://www.python.org/downloads/",
+                        "Space Download - 缺少 Python",
+                        0x10,
+                    )
+                except Exception:
+                    pass
+                print("未找到 Python，请安装 Python 3.11+ 并添加到 PATH")
+                sys.exit(1)
+        else:
+            candidates = [
+                "/opt/homebrew/bin/python3.11",
+                shutil.which("python3.11"),
+                shutil.which("python3"),
+            ]
+            python_exe = next((p for p in candidates if p and os.path.exists(p)), None)
+            if not python_exe:
+                print("未找到可用的 Python 解释器（需要 python3.11）")
+                sys.exit(1)
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
         python_exe = sys.executable
@@ -103,11 +141,9 @@ def run_app():
             print(f"⏳ 正在等待服务响应... ({retry_count}/{max_retries})")
 
     if retry_count >= max_retries:
-        print("❌ 错误: Streamlit 服务启动超时。")
+        print("错误: Streamlit 服务启动超时。")
         try:
-            import signal
-
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.terminate()
         except Exception:
             pass
         sys.exit(1)
@@ -133,18 +169,23 @@ def run_app():
     try:
         webview.start(debug=False)
     finally:
-        print("👋 正在清理并关闭程序...")
+        print("正在清理并关闭程序...")
         try:
-            import signal
-
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            proc.terminate()
             time.sleep(0.5)
             if proc.poll() is None:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                proc.kill()
         except Exception as e:
             print(f"清理进程时出错: {e}")
             proc.kill()
 
 
 if __name__ == "__main__":
+    # Windows --windowed 模式没有控制台，错误写入日志文件方便排查
+    if sys.platform == "win32":
+        log_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "app.log")
+        sys.stdout = open(log_file, "a", encoding="utf-8")
+        sys.stderr = sys.stdout
     run_app()
