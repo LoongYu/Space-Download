@@ -30,11 +30,11 @@ jobs:
         run: |
           pyinstaller main.py --name=SpaceDownload --windowed --onedir --noconfirm --clean "--add-data=yt_dlp_gui.py;." --collect-all=streamlit --collect-all=webview --collect-all=yt_dlp --exclude-module=matplotlib --exclude-module=notebook --exclude-module=test
 
-      - name: Rename output
-        shell: bash
+      - name: Rename and zip output
+        shell: pwsh
         run: |
-          mv dist/SpaceDownload "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}"
-          cd dist && zip -r "SpaceDownload-${{ steps.version.outputs.VERSION }}.zip" "SpaceDownload-${{ steps.version.outputs.VERSION }}"
+          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ steps.version.outputs.VERSION }}"
+          Compress-Archive -Path "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}" -DestinationPath "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
