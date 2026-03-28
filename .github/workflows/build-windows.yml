@@ -1,0 +1,37 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name (e.g., 2026032901)'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyinstaller streamlit pywebview deep-translator
+
+      - name: Build exe
+        run: pyinstaller main.py --name=SpaceDownload --windowed --onedir --noconfirm --clean "--add-data=yt_dlp_gui.py;." --collect-all=streamlit --collect-all=webview --collect-all=yt_dlp --exclude-module=matplotlib --exclude-module=notebook --exclude-module=test
+
+      - name: Zip and rename
+        shell: pwsh
+        run: |
+          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ github.event.inputs.release_name }}"
+          Compress-Archive -Path "dist/SpaceDownload-${{ github.event.inputs.release_name }}" -DestinationPath "dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip
