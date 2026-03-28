@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set version
+        id: version
+        run: echo "VERSION=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -25,16 +29,25 @@ jobs:
         run: |
           pyinstaller main.py --name=SpaceDownload --windowed --onedir --noconfirm --clean "--add-data=yt_dlp_gui.py;." --collect-all=streamlit --collect-all=webview --collect-all=yt_dlp --exclude-module=matplotlib --exclude-module=notebook --exclude-module=test
 
+      - name: Rename output
+        run: |
+          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ steps.version.outputs.VERSION }}"
+          Compress-Archive -Path "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}" -DestinationPath "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.zip"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: SpaceDownload-Windows
-          path: dist/SpaceDownload/
+          path: dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.zip
 
   build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: echo "VERSION=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -52,13 +65,13 @@ jobs:
       - name: Create DMG
         run: |
           brew install create-dmg
-          create-dmg --volname "Space Download" --window-pos 200 120 --window-size 800 400 --icon-size 100 --icon SpaceDownload.app 200 190 --hide-extension SpaceDownload.app --app-drop-link 600 185 dist/SpaceDownload.dmg dist/SpaceDownload.app
+          create-dmg --volname "Space Download" --window-pos 200 120 --window-size 800 400 --icon-size 100 --icon SpaceDownload.app 200 190 --hide-extension SpaceDownload.app --app-drop-link 600 185 "dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.dmg" dist/SpaceDownload.app
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: SpaceDownload-macOS
-          path: dist/SpaceDownload.dmg
+          path: dist/SpaceDownload-${{ steps.version.outputs.VERSION }}.dmg
 
   release:
     needs: [build-windows, build-macos]
@@ -67,13 +80,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Set version
+        id: version
+        run: echo "VERSION=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          name: "SpaceDownload ${{ steps.version.outputs.VERSION }}"
+          tag_name: "${{ steps.version.outputs.VERSION }}"
           files: |
             SpaceDownload-Windows/*
-            SpaceDownload-macOS/SpaceDownload.dmg
+            SpaceDownload-macOS/*
           generate_release_notes: true
