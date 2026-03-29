@@ -16,13 +16,6 @@ except Exception:
     GoogleTranslator = None
 
 sys.path.append(os.getcwd())
-
-# Windows frozen 模式下，从 bundled _internal 目录加载 yt_dlp
-if getattr(sys, "frozen", False):
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass and meipass not in sys.path:
-        sys.path.insert(0, meipass)
-
 import yt_dlp
 
 st.set_page_config(

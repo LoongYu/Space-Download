@@ -30,16 +30,9 @@ jobs:
           --name=SpaceDownload-${{ github.event.inputs.release_name }}
           --windowed --onedir --noconfirm --clean
           "--add-data=yt_dlp_gui.py;."
-          --collect-all=streamlit
           --collect-all=webview
           --collect-all=yt_dlp
-          --hidden-import=blinker
-          --hidden-import=packaging
-          --hidden-import=tenacity
-          --hidden-import=toml
-          --hidden-import=cachetools
-          --hidden-import=gitpython
-          --hidden-import=pyarrow
+          --exclude-module=streamlit
           --exclude-module=matplotlib
           --exclude-module=notebook
           --exclude-module=test
