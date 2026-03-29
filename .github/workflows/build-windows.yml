@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_name:
-        description: 'Release name (e.g., 2026032901)'
+        description: 'Release name (e.g., 2026032902)'
         required: true
 
 permissions:
@@ -19,32 +19,34 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
-        run: pip install pyinstaller streamlit pywebview deep-translator
+        run: pip install pyinstaller PyQt5 yt-dlp requests deep-translator
 
       - name: Build exe
+        env:
+          PYTHONIOENCODING: utf-8
         run: >
           pyinstaller main.py
           --name=SpaceDownload-${{ github.event.inputs.release_name }}
-          --windowed --onedir --noconfirm --clean
-          "--add-data=yt_dlp_gui.py;."
-          --collect-all=streamlit
-          --collect-all=webview
+          --onefile --windowed --noconfirm --clean
+          -p .
+          "--add-data=gui;gui"
+          "--add-data=sites;sites"
+          "--add-data=yt_dlp;yt_dlp"
           --collect-all=yt_dlp
-          --collect-all=blinker
+          --collect-all=PyQt5
+          --hidden-import=yt_dlp
+          --hidden-import=sites.pornhub
           --exclude-module=matplotlib
           --exclude-module=notebook
           --exclude-module=test
-
-      - name: Zip dist folder
-        run: Compress-Archive -Path "dist/SpaceDownload-${{ github.event.inputs.release_name }}" -DestinationPath "dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip"
 
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}.zip"
+          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}.exe"
           gh release delete-asset "${{ github.event.inputs.release_name }}" "$asset" -y 2>$null
           gh release upload "${{ github.event.inputs.release_name }}" "dist/$asset"
