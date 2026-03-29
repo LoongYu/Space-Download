@@ -32,6 +32,12 @@ def get_free_port():
 
 def run_streamlit_server(gui_script, port):
     """在独立进程里启动 streamlit 服务器"""
+    # 子进程也要能找到 bundled 的 yt_dlp
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass and meipass not in sys.path:
+            sys.path.insert(0, meipass)
+
     from streamlit.web import bootstrap
 
     bootstrap.load_config_options(
