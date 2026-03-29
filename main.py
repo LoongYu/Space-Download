@@ -2,9 +2,8 @@
 import os
 import sys
 import socket
-import threading
 import time
-import webview
+import multiprocessing
 
 # Windows: 修复 cp1252 编码崩溃
 if sys.platform == "win32":
@@ -22,10 +21,6 @@ if getattr(sys, "frozen", False):
     if meipass and meipass not in sys.path:
         sys.path.insert(0, meipass)
 
-import streamlit
-from streamlit.web import bootstrap
-from streamlit import config as st_config
-
 
 def get_free_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,8 +30,22 @@ def get_free_port():
     return port
 
 
-def start_streamlit(gui_script, port):
-    """在当前进程内启动 streamlit 服务器"""
+def run_streamlit_server(gui_script, port):
+    """在独立进程里启动 streamlit 服务器"""
+    from streamlit.web import bootstrap
+
+    bootstrap.load_config_options(
+        flag_options={
+            "server.port": port,
+            "server.address": "127.0.0.1",
+            "server.headless": True,
+            "browser.gatherUsageStats": False,
+            "server.runOnSave": False,
+            "global.developmentMode": False,
+            "global.showWarningOnDirectExecution": False,
+        }
+    )
+
     server_args = type(
         "Args",
         (),
@@ -53,22 +62,28 @@ def start_streamlit(gui_script, port):
         },
     )()
 
-    bootstrap.load_config_options(
-        flag_options={
-            "server.port": port,
-            "server.address": "127.0.0.1",
-            "server.headless": True,
-            "browser.gatherUsageStats": False,
-            "server.runOnSave": False,
-            "global.developmentMode": False,
-            "global.showWarningOnDirectExecution": False,
-        }
-    )
-
     bootstrap.run(gui_script, "", [], server_args)
 
 
+def wait_for_server(port, timeout=30):
+    """等待 streamlit 页面真正可访问"""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            import urllib.request
+
+            resp = urllib.request.urlopen(f"http://127.0.0.1:{port}", timeout=2)
+            if resp.status == 200:
+                return True
+        except Exception:
+            pass
+        time.sleep(0.5)
+    return False
+
+
 def main():
+    import webview
+
     if getattr(sys, "frozen", False):
         base_path = sys._MEIPASS
     else:
@@ -77,25 +92,21 @@ def main():
     gui_script = os.path.join(base_path, "yt_dlp_gui.py")
     port = get_free_port()
 
-    # 在后台线程启动 streamlit 服务器
-    def run_server():
-        try:
-            start_streamlit(gui_script, port)
-        except Exception as e:
-            print(f"Streamlit 服务异常: {e}")
+    # streamlit 放到独立进程
+    server_proc = multiprocessing.Process(
+        target=run_streamlit_server,
+        args=(gui_script, port),
+        daemon=True,
+    )
+    server_proc.start()
 
-    server_thread = threading.Thread(target=run_server, daemon=True)
-    server_thread.start()
+    # 等 streamlit 真正可访问（不只是端口开了）
+    if not wait_for_server(port, timeout=30):
+        print("Streamlit 服务启动超时")
+        server_proc.terminate()
+        sys.exit(1)
 
-    # 等待 streamlit 就绪
-    for _ in range(60):
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=1):
-                break
-        except OSError:
-            time.sleep(0.5)
-
-    # 创建桌面窗口
+    # pywebview 必须在主线程
     window = webview.create_window(
         "Space Download",
         f"http://127.0.0.1:{port}",
@@ -105,19 +116,28 @@ def main():
         resizable=True,
     )
 
+    import threading
+
     def force_reload(w, url):
-        time.sleep(2)
-        w.load_url(url)
+        time.sleep(3)
+        try:
+            w.load_url(url)
+        except Exception:
+            pass
 
     threading.Thread(target=force_reload, args=(window, f"http://127.0.0.1:{port}"), daemon=True).start()
 
     try:
         webview.start(debug=False)
     finally:
+        server_proc.terminate()
+        server_proc.join(timeout=3)
         os._exit(0)
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
+
     # Windows --windowed 模式写日志
     if sys.platform == "win32" and getattr(sys, "frozen", False):
         log_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "logs")
@@ -125,4 +145,5 @@ if __name__ == "__main__":
         log_file = os.path.join(log_dir, "app.log")
         sys.stdout = open(log_file, "a", encoding="utf-8")
         sys.stderr = sys.stdout
+
     main()
