@@ -90,7 +90,12 @@ def run_app():
 
     env = os.environ.copy()
     if getattr(sys, "frozen", False):
-        env["PYTHONPATH"] = base_path
+        if sys.platform == "win32":
+            # Windows: 子进程用用户系统 Python，不需要 PYTHONPATH 指向 bundled 目录
+            # GUI 脚本路径通过 sys.path 在 yt_dlp_gui.py 内部处理
+            env.pop("PYTHONPATH", None)
+        else:
+            env["PYTHONPATH"] = base_path
         env["STREAMLIT_SERVER_STATIC_FILE_PATH"] = os.path.join(base_path, "streamlit", "static")
 
     cmd = [
