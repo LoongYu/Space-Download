@@ -73,6 +73,7 @@ build/
 dist/
 zip/
 tmp/
+.pyinstaller/
 venv/
 .venv/
 completions/
@@ -134,3 +135,4 @@ yt-dlp-plugins
 
 # Packages
 yt_dlp_ejs/
+local_notes/

@@ -1,155 +1,179 @@
 #!/usr/bin/env python3
 import os
-import sys
+import shutil
+import signal
 import socket
+import subprocess
+import sys
+import threading
 import time
-import multiprocessing
+import traceback
 
-# Windows: 修复 cp1252 编码崩溃
-if sys.platform == "win32":
-    try:
-        if sys.stdout:
-            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        if sys.stderr:
-            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+import webview
 
-# frozen 模式下，把 bundled 目录加到 sys.path
-if getattr(sys, "frozen", False):
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass and meipass not in sys.path:
-        sys.path.insert(0, meipass)
+
+def get_log_file():
+    if not getattr(sys, "frozen", False):
+        return None
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(log_dir, "app.log")
+
+
+def log_message(message):
+    log_file = get_log_file()
+    if log_file:
+        with open(log_file, "a", encoding="utf-8", errors="replace") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
+    else:
+        print(message, flush=True)
 
 
 def get_free_port():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
 
 
-def run_streamlit_server(gui_script, port):
-    """在独立进程里启动 streamlit 服务器"""
-    # 子进程也要能找到 bundled 的 yt_dlp
+def is_port_open(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def get_base_path():
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
-        if meipass and meipass not in sys.path:
-            sys.path.insert(0, meipass)
-
-    from streamlit.web import bootstrap
-
-    bootstrap.load_config_options(
-        flag_options={
-            "server.port": port,
-            "server.address": "127.0.0.1",
-            "server.headless": True,
-            "browser.gatherUsageStats": False,
-            "server.runOnSave": False,
-            "global.developmentMode": False,
-            "global.showWarningOnDirectExecution": False,
-        }
-    )
-
-    server_args = type(
-        "Args",
-        (),
-        {
-            "global_development_mode": False,
-            "global_log_level": "error",
-            "global_disable_watchdog_warning": False,
-            "global_show_warning_on_direct_execution": False,
-            "server_headless": True,
-            "server_port": port,
-            "server_address": "127.0.0.1",
-            "browser_gather_usage_stats": False,
-            "server_run_on_save": False,
-        },
-    )()
-
-    bootstrap.run(gui_script, "", [], server_args)
+        if meipass:
+            return meipass
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
 
 
-def wait_for_server(port, timeout=30):
-    """等待 streamlit 页面真正可访问"""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+def get_python_executable():
+    if not getattr(sys, "frozen", False):
+        return sys.executable
+
+    candidates = [
+        "/opt/homebrew/bin/python3.11",
+        shutil.which("python3.11"),
+        shutil.which("python3"),
+    ]
+    python_exe = next((p for p in candidates if p and os.path.exists(p)), None)
+    if not python_exe:
+        raise RuntimeError("未找到可用的 Python 解释器（需要 python3.11 或 python3）")
+    return python_exe
+
+
+def terminate_process_group(proc):
+    if not proc:
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        time.sleep(0.5)
+        if proc.poll() is None:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except Exception:
         try:
-            import urllib.request
-
-            resp = urllib.request.urlopen(f"http://127.0.0.1:{port}", timeout=2)
-            if resp.status == 200:
-                return True
+            proc.kill()
         except Exception:
             pass
-        time.sleep(0.5)
-    return False
 
 
-def main():
-    import webview
-
-    if getattr(sys, "frozen", False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
+def run_app():
+    base_path = get_base_path()
+    python_exe = get_python_executable()
     gui_script = os.path.join(base_path, "yt_dlp_gui.py")
     port = get_free_port()
 
-    # streamlit 放到独立进程
-    server_proc = multiprocessing.Process(
-        target=run_streamlit_server,
-        args=(gui_script, port),
-        daemon=True,
+    log_message(f"Launching app. base_path={base_path} gui_script={gui_script}")
+    log_message(f"Using python executable: {python_exe}")
+    log_message(f"Selected port: {port}")
+
+    env = os.environ.copy()
+    if getattr(sys, "frozen", False):
+        env["PYTHONPATH"] = base_path
+        env["STREAMLIT_SERVER_STATIC_FILE_PATH"] = os.path.join(base_path, "streamlit", "static")
+
+    cmd = [
+        python_exe,
+        "-m",
+        "streamlit",
+        "run",
+        gui_script,
+        "--global.developmentMode",
+        "false",
+        "--global.showWarningOnDirectExecution",
+        "false",
+        "--server.port",
+        str(port),
+        "--server.headless",
+        "true",
+        "--browser.gatherUsageStats",
+        "false",
+        "--server.runOnSave",
+        "false",
+        "--server.address",
+        "127.0.0.1",
+    ]
+
+    log_message(f"Starting Streamlit subprocess: {' '.join(cmd)}")
+    proc = subprocess.Popen(
+        cmd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        start_new_session=True,
     )
-    server_proc.start()
 
-    # 等 streamlit 真正可访问（不只是端口开了）
-    if not wait_for_server(port, timeout=30):
-        print("Streamlit 服务启动超时")
-        server_proc.terminate()
-        sys.exit(1)
+    def log_reader(pipe):
+        try:
+            for line in iter(pipe.readline, ""):
+                log_message(f"[Streamlit] {line.rstrip()}")
+        except Exception:
+            log_message("Streamlit log reader crashed:\n" + traceback.format_exc())
 
-    # pywebview 必须在主线程
+    threading.Thread(target=log_reader, args=(proc.stdout,), daemon=True).start()
+
+    max_retries = 80
+    retry_count = 0
+    while not is_port_open(port) and retry_count < max_retries:
+        if proc.poll() is not None:
+            log_message(f"Streamlit 子进程提前退出，退出码: {proc.returncode}")
+            raise RuntimeError(f"Streamlit 子进程提前退出，退出码: {proc.returncode}")
+        time.sleep(0.5)
+        retry_count += 1
+
+    if retry_count >= max_retries:
+        log_message("Streamlit 服务启动超时")
+        terminate_process_group(proc)
+        raise RuntimeError("Streamlit 服务启动超时")
+
+    log_message("Streamlit 服务已就绪，开始创建窗口")
     window = webview.create_window(
         "Space Download",
         f"http://127.0.0.1:{port}",
-        width=1000,
-        height=700,
+        width=1600,
+        height=900,
         background_color="#000000",
         resizable=True,
     )
 
-    import threading
-
-    def force_reload(w, url):
-        time.sleep(3)
-        try:
-            w.load_url(url)
-        except Exception:
-            pass
-
-    threading.Thread(target=force_reload, args=(window, f"http://127.0.0.1:{port}"), daemon=True).start()
-
     try:
         webview.start(debug=False)
+    except Exception:
+        log_message("webview.start crashed:\n" + traceback.format_exc())
+        raise
     finally:
-        server_proc.terminate()
-        server_proc.join(timeout=3)
-        os._exit(0)
+        log_message("Cleaning up Streamlit subprocess")
+        terminate_process_group(proc)
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
-
-    # Windows --windowed 模式写日志
-    if sys.platform == "win32" and getattr(sys, "frozen", False):
-        log_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, "app.log")
-        sys.stdout = open(log_file, "a", encoding="utf-8")
+    if getattr(sys, "frozen", False):
+        log_file = get_log_file()
+        sys.stdout = open(log_file, "a", encoding="utf-8", errors="replace")
         sys.stderr = sys.stdout
 
-    main()
+    run_app()
