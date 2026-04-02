@@ -1,23 +1,25 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import sys
-import os
-import time
+import atexit
 import json
-from pathlib import Path
-import threading
+import os
 import queue
+import shutil
+import subprocess
+import sys
+import threading
+import time
 import uuid
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-import requests  # 新增，用于独立下载封面
+
+import requests
+import streamlit as st
+import yt_dlp
 
 try:
     from deep_translator import GoogleTranslator
 except Exception:
     GoogleTranslator = None
 
-sys.path.append(os.getcwd())
-import yt_dlp
 
 DEFAULT_DOWNLOAD_PATH = str(Path.home() / "Downloads")
 DEFAULT_USER_SETTINGS = {
@@ -34,6 +36,49 @@ DEFAULT_USER_SETTINGS = {
     "saved_username": "",
     "saved_use_cookies": False,
 }
+COMMON_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+}
+PORNHUB_HEADERS = {
+    **COMMON_HEADERS,
+    "Referer": "https://www.pornhub.com/",
+}
+PORNHUB_COOKIE_LINES = [
+    ".pornhub.com\tTRUE\t/\tFALSE\t0\tage_verified\t1",
+    ".pornhub.com\tTRUE\t/\tFALSE\t0\taccessAgeDisclaimerPH\t1",
+    ".pornhub.com\tTRUE\t/\tFALSE\t0\taccessPH\t1",
+    ".pornhub.com\tTRUE\t/\tFALSE\t0\taccessAgeDisclaimerUK\t1",
+]
+
+TEMP_PATHS = set()
+TEMP_PATHS_LOCK = threading.Lock()
+
+
+def register_temp_path(path):
+    with TEMP_PATHS_LOCK:
+        TEMP_PATHS.add(path)
+    return path
+
+
+
+def cleanup_registered_temp_paths():
+    with TEMP_PATHS_LOCK:
+        paths = list(TEMP_PATHS)
+        TEMP_PATHS.clear()
+    for path in paths:
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
+            elif os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+
+atexit.register(cleanup_registered_temp_paths)
+
 
 
 def get_user_settings_path():
@@ -44,6 +89,7 @@ def get_user_settings_path():
     else:
         base_dir = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "SpaceDownload"
     return base_dir / "user_settings.json"
+
 
 
 def load_user_settings():
@@ -63,14 +109,17 @@ def load_user_settings():
     return settings
 
 
+
 def collect_user_settings():
     return {key: st.session_state.get(key, default_value) for key, default_value in DEFAULT_USER_SETTINGS.items()}
+
 
 
 def save_user_settings(settings):
     settings_path = get_user_settings_path()
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 
 def initialize_user_settings_state():
@@ -84,12 +133,14 @@ def initialize_user_settings_state():
     st.session_state["_user_settings_initialized"] = True
 
 
+
 def persist_user_settings_if_needed():
     current_settings = collect_user_settings()
     if current_settings == st.session_state.get("_last_saved_user_settings"):
         return
     save_user_settings(current_settings)
     st.session_state["_last_saved_user_settings"] = current_settings
+
 
 st.set_page_config(
     page_title="🚀Space Download",
@@ -307,7 +358,6 @@ st.markdown(
         display: flex;
         flex-direction: column-reverse;
     }
-    /* Show scrollbar only for log-area if needed */
     .log-area::-webkit-scrollbar {
         display: block;
         width: 6px;
@@ -316,7 +366,6 @@ st.markdown(
         background: #333;
         border-radius: 10px;
     }
-    /* Custom Progress Bar Style */
     .progress-container {
         width: 100%;
         height: 24px;
@@ -333,10 +382,7 @@ st.markdown(
         border-radius: 0;
         transition: width 0.4s ease;
     }
-    /* Hide native progress bar if any */
     .stProgress { display: none !important; }
-    
-    /* Sidebar styling cleanup */
     [data-testid="stSidebar"] section {
         padding-top: 0.2rem !important;
     }
@@ -377,12 +423,15 @@ if "show_success" not in st.session_state:
     st.session_state.show_success = False
 if "task_counts" not in st.session_state:
     st.session_state.task_counts = {"current": 0, "total": 0, "completed": 0, "failed": 0}
+if "_done_handled" not in st.session_state:
+    st.session_state._done_handled = False
 
 
 def append_log(message):
     st.session_state.logs.append(f"{time.strftime('%H:%M:%S')} - {message}")
     if len(st.session_state.logs) > 300:
         st.session_state.logs = st.session_state.logs[-300:]
+
 
 
 def translate_text(text):
@@ -392,6 +441,7 @@ def translate_text(text):
         return GoogleTranslator(source="auto", target="zh-CN").translate(text)
     except Exception:
         return text
+
 
 
 def is_collection_url(url):
@@ -410,15 +460,18 @@ def is_collection_url(url):
     return any(marker in u for marker in collection_markers)
 
 
+
 def is_pornhub_url(url):
     host = (urlsplit(url or "").hostname or "").lower()
     return "pornhub" in host
+
 
 
 def supports_page_url_selection(url):
     if not is_collection_url(url) or not is_pornhub_url(url):
         return False
     return "/playlist/" not in (urlsplit(url or "").path or "").lower()
+
 
 
 def update_page_query(url, page_num):
@@ -434,6 +487,7 @@ def update_page_query(url, page_num):
             split_result.fragment,
         )
     )
+
 
 
 def build_pornhub_page_url(url, page_num):
@@ -464,69 +518,136 @@ def build_pornhub_page_url(url, page_num):
     return update_page_query(normalized_url, page_num)
 
 
+
 def log_json_metadata(task_queue, prefix, info_dict):
     if not isinstance(info_dict, dict):
         task_queue.put(("log", f"{prefix}: <empty>"))
         return
 
-    try:
-        metadata_text = json.dumps(info_dict, ensure_ascii=False, indent=2, default=str)
-    except Exception as e:
-        safe_info = {k: str(v) for k, v in info_dict.items()}
-        metadata_text = json.dumps(safe_info, ensure_ascii=False, indent=2)
+    relevant_keys = [
+        "id",
+        "title",
+        "alt_title",
+        "uploader",
+        "channel",
+        "upload_date",
+        "duration",
+        "view_count",
+        "like_count",
+        "comment_count",
+        "webpage_url",
+        "original_url",
+        "extractor",
+        "extractor_key",
+        "format",
+        "format_id",
+        "ext",
+        "resolution",
+        "width",
+        "height",
+        "fps",
+        "filesize",
+        "filesize_approx",
+        "thumbnail",
+        "description",
+        "tags",
+        "categories",
+        "age_limit",
+    ]
+    filtered_info = {key: info_dict.get(key) for key in relevant_keys if info_dict.get(key) not in (None, "", [], {})}
 
+    formats = info_dict.get("formats")
+    if isinstance(formats, list):
+        filtered_formats = []
+        for item in formats[:8]:
+            if not isinstance(item, dict):
+                continue
+            filtered_item = {
+                "format_id": item.get("format_id"),
+                "ext": item.get("ext"),
+                "resolution": item.get("resolution"),
+                "width": item.get("width"),
+                "height": item.get("height"),
+                "fps": item.get("fps"),
+                "filesize": item.get("filesize") or item.get("filesize_approx"),
+                "protocol": item.get("protocol"),
+                "format_note": item.get("format_note"),
+            }
+            filtered_item = {key: value for key, value in filtered_item.items() if value not in (None, "")}
+            if filtered_item:
+                filtered_formats.append(filtered_item)
+        if filtered_formats:
+            filtered_info["formats"] = filtered_formats
+
+    try:
+        metadata_text = json.dumps(filtered_info, ensure_ascii=False, indent=2, default=str)
+    except Exception:
+        metadata_text = json.dumps({k: str(v) for k, v in filtered_info.items()}, ensure_ascii=False, indent=2)
     task_queue.put(("log", f"{prefix}:\n{metadata_text}"))
+
 
 
 def parse_input_urls(raw_text):
     urls = []
     for line in (raw_text or "").splitlines():
         line = line.strip()
-        if not line:
-            continue
-        urls.append(line)
+        if line:
+            urls.append(line)
     return urls
+
 
 
 def parse_page_selection(selection_text):
     selection = (selection_text or "").strip()
     if not selection:
         return None
-
     pages = set()
     for part in selection.split(","):
         token = part.strip()
         if not token:
             continue
-        if "-" in token:
-            start_text, end_text = token.split("-", 1)
-            start = int(start_text.strip())
-            end = int(end_text.strip())
-            if start <= 0 or end <= 0 or end < start:
-                raise ValueError(f"无效分页范围: {token}")
-            for page in range(start, end + 1):
+        try:
+            if "-" in token:
+                start_text, end_text = token.split("-", 1)
+                start = int(start_text.strip())
+                end = int(end_text.strip())
+                if start <= 0 or end <= 0 or end < start:
+                    raise ValueError
+                for page in range(start, end + 1):
+                    pages.add(page)
+            else:
+                page = int(token)
+                if page <= 0:
+                    raise ValueError
                 pages.add(page)
-        else:
-            page = int(token)
-            if page <= 0:
-                raise ValueError(f"无效页码: {token}")
-            pages.add(page)
+        except ValueError as exc:
+            raise ValueError(f"无效分页输入: {token}") from exc
     return pages
 
 
-def download_thumbnail(save_dir, filename_tmpl, info_dict):
-    t_url = info_dict.get("thumbnail")
-    if not t_url:
+
+def build_thumbnail_headers(source_url):
+    return PORNHUB_HEADERS if is_pornhub_url(source_url) else COMMON_HEADERS
+
+
+
+def download_thumbnail(task_queue, source_url, ydl_opts, info_dict):
+    thumbnail_url = info_dict.get("thumbnail")
+    if not thumbnail_url:
         return
-    headers = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.pornhub.com/"}
-    with yt_dlp.YoutubeDL({"outtmpl": filename_tmpl}) as ydl_temp:
-        b_name = os.path.splitext(ydl_temp.prepare_filename(info_dict))[0]
-        t_path = os.path.join(save_dir, f"{b_name}.jpg")
-    os.makedirs(os.path.dirname(t_path), exist_ok=True)
-    r = requests.get(t_url, headers=headers, timeout=15, verify=False)
-    if r.status_code == 200:
-        with open(t_path, "wb") as f:
-            f.write(r.content)
+    ydl_config = {
+        "paths": ydl_opts.get("paths"),
+        "outtmpl": ydl_opts.get("outtmpl"),
+        "restrictfilenames": ydl_opts.get("restrictfilenames", False),
+    }
+    with yt_dlp.YoutubeDL(ydl_config) as ydl_temp:
+        target_path = Path(ydl_temp.prepare_filename(info_dict)).with_suffix(".jpg")
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    response = requests.get(thumbnail_url, headers=build_thumbnail_headers(source_url), timeout=15)
+    response.raise_for_status()
+    target_path.write_bytes(response.content)
+    task_queue.put(("log", f"INFO: 已保存封面图: {target_path.name}"))
+
 
 
 def log_failure_summary(task_queue, failures):
@@ -540,20 +661,116 @@ def log_failure_summary(task_queue, failures):
         task_queue.put(("log", f"[失败 {index}] {title}\n链接: {url}\n原因: {error}"))
 
 
-def download_worker(
-    task_queue, stop_event, urls, opts, translate_title, save_dir, filename_tmpl, embed_thumbnail_flag, page_selection
-):
+
+def normalize_entries(info):
+    if not isinstance(info, dict):
+        return []
+    entries = info.get("entries") or []
+    if not isinstance(entries, (list, tuple)):
+        entries = list(entries)
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
+
+def create_temp_cookie_file(temp_dir, filename, lines=None, payload=None):
+    path = register_temp_path(os.path.join(temp_dir, filename))
+    if payload is not None:
+        Path(path).write_bytes(payload)
+    else:
+        text = "# Netscape HTTP Cookie File\n"
+        if lines:
+            text += "\n".join(lines) + "\n"
+        Path(path).write_text(text, encoding="utf-8")
+    return path
+
+
+
+def build_base_opts(quality, out_format, filename_tmpl, save_dir, temp_dir, ffmpeg_path, proxy_url=None, auth=None):
+    opts = {
+        "format": quality,
+        "n_threads": 3,
+        "outtmpl": {
+            "default": f"{filename_tmpl}.%(ext)s",
+            "thumbnail": f"{filename_tmpl}.%(ext)s",
+        },
+        "writethumbnail": False,
+        "postprocessors": [
+            {
+                "key": "FFmpegVideoConvertor",
+                "preferedformat": out_format,
+            },
+        ],
+        "noplaylist": False,
+        "restrictfilenames": False,
+        "noprogress": True,
+        "concurrent_fragment_downloads": 8,
+        "merge_output_format": out_format,
+        "paths": {
+            "home": save_dir,
+            "temp": temp_dir,
+        },
+        "keep_fragments": False,
+        "nopart": True,
+        "socket_timeout": 30,
+        "retries": 5,
+        "fragment_retries": 5,
+        "http_chunk_size": 0,
+        "hls_use_mpegts": True,
+        "http_headers": COMMON_HEADERS.copy(),
+    }
+    if ffmpeg_path:
+        opts["ffmpeg_location"] = ffmpeg_path
+    if proxy_url:
+        opts["proxy"] = proxy_url
+    if auth:
+        opts.update(auth)
+    return opts
+
+
+
+def build_opts_for_url(base_opts, url, cookiefile=None):
+    opts = base_opts.copy()
+    opts["http_headers"] = COMMON_HEADERS.copy()
+    if is_pornhub_url(url):
+        opts["http_headers"] = PORNHUB_HEADERS.copy()
+        if cookiefile:
+            opts["cookiefile"] = cookiefile
+    elif cookiefile:
+        opts["cookiefile"] = cookiefile
+    return opts
+
+
+
+def resolve_ffmpeg_path():
+    return shutil.which("ffmpeg")
+
+
+
+def download_worker(task_queue, stop_event, urls, base_opts, translate_title, embed_thumbnail_flag, page_selection, cookiefiles):
+    important_debug_markers = (
+        "Destination:",
+        "Download completed",
+        "MoveFiles",
+        "VideoConvertor",
+        "Merging formats into",
+        "Deleting original file",
+        "Extracting URL",
+    )
+
     class InnerLogger:
         def debug(self, msg):
             if stop_event.is_set():
                 raise Exception("USER_STOPPED")
-            if "[debug]" not in msg:
-                task_queue.put(("log", f"DEBUG: {msg}"))
+            message = str(msg)
+            if any(marker in message for marker in important_debug_markers):
+                task_queue.put(("log", f"DEBUG: {message}"))
 
         def info(self, msg):
             if stop_event.is_set():
                 raise Exception("USER_STOPPED")
-            task_queue.put(("log", f"INFO: {msg}"))
+            message = str(msg)
+            if message.startswith("[download]") or message.startswith("[ExtractAudio]"):
+                task_queue.put(("log", f"INFO: {message}"))
 
         def warning(self, msg):
             if stop_event.is_set():
@@ -565,27 +782,6 @@ def download_worker(
                 raise Exception("USER_STOPPED")
             task_queue.put(("log", f"ERROR: {msg}"))
 
-    def progress_hook(d):
-        if stop_event.is_set():
-            raise Exception("USER_STOPPED")
-        if d["status"] == "downloading":
-            percent_str = (d.get("_percent_str") or "0%").replace("%", "").strip()
-            try:
-                percent = float(percent_str) / 100.0
-                task_queue.put(("progress", percent))
-                # 提取正在下载的文件名（可选）
-                filename = os.path.basename(d.get("filename", ""))
-                task_queue.put(
-                    (
-                        "status",
-                        f"📦 正在下载: {d.get('_percent_str')} | 速度: {d.get('_speed_str')} | 剩余: {d.get('_eta_str')}",
-                    )
-                )
-            except Exception:
-                pass
-        elif d["status"] == "finished":
-            task_queue.put(("progress", 1.0))
-
     stats = {"current": 0, "total": 0, "completed": 0, "failed": 0}
     failures = []
 
@@ -593,34 +789,57 @@ def download_worker(
         stats["current"] = stats["completed"] + stats["failed"]
         task_queue.put(("task_count", stats.copy()))
 
+    def update_overall_progress():
+        total = max(stats["total"], 1)
+        task_queue.put(("progress", min((stats["completed"] + stats["failed"]) / total, 1.0)))
+
     def record_failure(url, error, title=None):
         failures.append({"title": title or "", "url": url, "error": str(error)})
         stats["failed"] += 1
         update_counts()
+        update_overall_progress()
         task_queue.put(("log", f"❌ 视频下载失败: {title or url} | {error}"))
 
     def mark_success():
         stats["completed"] += 1
         update_counts()
+        update_overall_progress()
+
+    def progress_hook(d):
+        if stop_event.is_set():
+            raise Exception("USER_STOPPED")
+        if d.get("status") == "downloading":
+            percent_str = (d.get("_percent_str") or "0%").replace("%", "").strip()
+            try:
+                percent = float(percent_str) / 100.0
+                task_queue.put(("progress", percent))
+            except Exception:
+                pass
+            task_queue.put(
+                (
+                    "status",
+                    f"📦 正在下载: {d.get('_percent_str')} | 速度: {d.get('_speed_str')} | 剩余: {d.get('_eta_str')}",
+                )
+            )
+        elif d.get("status") == "finished":
+            task_queue.put(("progress", 1.0))
 
     try:
         for url_index, url in enumerate(urls, start=1):
             if stop_event.is_set():
                 break
-
-            auto_playlist = is_collection_url(url)
             task_queue.put(("log", f"正在解析链接 [{url_index}/{len(urls)}]: {url}"))
+            url_cookiefile = cookiefiles.get("pornhub") if is_pornhub_url(url) else cookiefiles.get("default")
+            auto_playlist = is_collection_url(url)
 
             if not auto_playlist:
-                single_opts = opts.copy()
-                single_opts.update(
-                    {
-                        "logger": InnerLogger(),
-                        "progress_hooks": [progress_hook],
-                        "noplaylist": True,
-                        "ignoreerrors": False,
-                    }
-                )
+                single_opts = build_opts_for_url(base_opts, url, url_cookiefile)
+                single_opts.update({
+                    "logger": InnerLogger(),
+                    "progress_hooks": [progress_hook],
+                    "noplaylist": True,
+                    "ignoreerrors": False,
+                })
                 stats["total"] += 1
                 update_counts()
                 with yt_dlp.YoutubeDL(single_opts) as ydl:
@@ -635,28 +854,25 @@ def download_worker(
                             item_info["title"] = translate_text(item_info.get("title", ""))
                         ydl.process_ie_result(item_info, download=True)
                         if embed_thumbnail_flag:
-                            try:
-                                download_thumbnail(save_dir, filename_tmpl, item_info)
-                            except Exception as thumb_error:
-                                task_queue.put(("log", f"WARN: 封面下载失败: {thumb_error}"))
+                            download_thumbnail(task_queue, url, single_opts, item_info)
                         mark_success()
                     except Exception as e:
-                        record_failure(url, e, (item_info or {}).get("title") if "item_info" in locals() else None)
+                        record_failure(url, e, (item_info or {}).get("title"))
                 continue
 
-            extract_opts = opts.copy()
-            extract_opts.update(
-                {
-                    "extract_flat": "in_playlist",
-                    "logger": InnerLogger(),
-                    "noplaylist": False,
-                }
-            )
+            extract_opts = build_opts_for_url(base_opts, url, url_cookiefile)
+            extract_opts.update({
+                "extract_flat": "in_playlist",
+                "logger": InnerLogger(),
+                "noplaylist": False,
+            })
             with yt_dlp.YoutubeDL(extract_opts) as ydl_extract:
                 selected_entries = []
                 seen_urls = set()
 
                 def append_entry(entry, index, page_num=None, page_item_index=None):
+                    if not isinstance(entry, dict):
+                        return False
                     entry_url = entry.get("webpage_url") or entry.get("original_url") or entry.get("url")
                     if not (isinstance(entry_url, str) and entry_url.startswith("http")):
                         return False
@@ -676,9 +892,7 @@ def download_worker(
 
                 if page_selection and supports_page_url_selection(url):
                     requested_pages = sorted(page_selection)
-                    task_queue.put(
-                        ("log", f"正在按网页分页解析列表: 第 {', '.join(str(page) for page in requested_pages)} 页")
-                    )
+                    task_queue.put(("log", f"正在按网页分页解析列表: 第 {', '.join(str(page) for page in requested_pages)} 页"))
                     for page_num in requested_pages:
                         page_url = build_pornhub_page_url(url, page_num)
                         task_queue.put(("log", f"正在快速扫描第 {page_num} 页: {page_url}"))
@@ -687,28 +901,20 @@ def download_worker(
                         except Exception as page_error:
                             task_queue.put(("log", f"WARN: 第 {page_num} 页解析失败: {page_error}"))
                             continue
-
-                        page_entries = [entry for entry in list(page_info.get("entries") or []) if isinstance(entry, dict)]
+                        page_entries = normalize_entries(page_info)
                         page_added = 0
                         for page_item_index, entry in enumerate(page_entries, start=1):
                             page_added += int(
-                                append_entry(
-                                    entry,
-                                    len(selected_entries) + 1,
-                                    page_num=page_num,
-                                    page_item_index=page_item_index,
-                                )
+                                append_entry(entry, len(selected_entries) + 1, page_num=page_num, page_item_index=page_item_index)
                             )
                         task_queue.put(("log", f"第 {page_num} 页识别到 {page_added} 个可下载视频"))
-                    task_queue.put(
-                        ("log", f"✅ 已按网页页码筛选 {len(requested_pages)} 页，共 {len(selected_entries)} 个视频")
-                    )
+                    task_queue.put(("log", f"✅ 已按网页页码筛选 {len(requested_pages)} 页，共 {len(selected_entries)} 个视频"))
                 else:
                     if page_selection and not supports_page_url_selection(url):
                         task_queue.put(("log", "WARN: 当前链接不支持按网页页码筛选，已忽略页码输入并按整个列表下载"))
                     task_queue.put(("log", "正在快速扫描列表信息..."))
                     list_info = ydl_extract.extract_info(url, download=False)
-                    entries = [entry for entry in list(list_info.get("entries") or []) if isinstance(entry, dict)]
+                    entries = normalize_entries(list_info)
                     for idx, entry in enumerate(entries, start=1):
                         append_entry(entry, idx)
                     task_queue.put(("log", f"✅ 识别到批量列表，共 {len(selected_entries)} 个视频"))
@@ -719,28 +925,22 @@ def download_worker(
             stats["total"] += len(selected_entries)
             update_counts()
 
-            final_opts = opts.copy()
-            final_opts.update(
-                {
+            for entry in selected_entries:
+                if stop_event.is_set():
+                    break
+                item_url = entry["url"]
+                item_title = entry["title"]
+                item_index = entry["index"]
+                item_page = entry.get("page")
+                item_page_index = entry.get("page_item_index")
+                item_info = None
+                final_opts = build_opts_for_url(base_opts, item_url, url_cookiefile)
+                final_opts.update({
                     "logger": InnerLogger(),
                     "progress_hooks": [progress_hook],
-                    "concurrent_fragment_downloads": 8,
                     "ignoreerrors": True,
-                    "http_chunk_size": 0,
-                    "hls_use_mpegts": True,
-                }
-            )
-
-            with yt_dlp.YoutubeDL(final_opts) as ydl:
-                for entry in selected_entries:
-                    if stop_event.is_set():
-                        break
-                    item_url = entry["url"]
-                    item_title = entry["title"]
-                    item_index = entry["index"]
-                    item_page = entry.get("page")
-                    item_page_index = entry.get("page_item_index")
-                    item_info = None
+                })
+                with yt_dlp.YoutubeDL(final_opts) as ydl:
                     try:
                         item_info = ydl.extract_info(item_url, download=False)
                         if not isinstance(item_info, dict):
@@ -754,22 +954,23 @@ def download_worker(
                             item_info["title"] = translate_text(item_info.get("title", ""))
                         ydl.process_ie_result(item_info, download=True)
                         if embed_thumbnail_flag:
-                            try:
-                                download_thumbnail(save_dir, filename_tmpl, item_info)
-                            except Exception as thumb_error:
-                                task_queue.put(("log", f"WARN: 封面下载失败: {thumb_error}"))
+                            download_thumbnail(task_queue, item_url, final_opts, item_info)
                         mark_success()
                     except Exception as e:
                         record_failure(item_url, e, item_title or (item_info or {}).get("title"))
 
         log_failure_summary(task_queue, failures)
         task_queue.put(("log", f"任务完成：成功 {stats['completed']} 个，失败 {stats['failed']} 个"))
-        task_queue.put(("done", "success"))
+        task_queue.put(("done", "success" if not stop_event.is_set() else "stopped"))
     except Exception as e:
-        if "USER_STOPPED" in str(e):
-            task_queue.put(("done", "stopped"))
-        else:
-            task_queue.put(("done", f"error:{e}"))
+        task_queue.put(("done", "stopped" if "USER_STOPPED" in str(e) else f"error:{e}"))
+    finally:
+        for key, path in cookiefiles.items():
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception as cleanup_error:
+                    task_queue.put(("log", f"WARN: 清理临时文件失败 {os.path.basename(path)}: {cleanup_error}"))
 
 
 with st.sidebar:
@@ -805,7 +1006,6 @@ with st.sidebar:
     if browse_clicked:
         try:
             import platform
-            import subprocess
 
             chosen = ""
             if platform.system() == "Darwin":
@@ -870,7 +1070,6 @@ persist_user_settings_if_needed()
 
 st.title("🚀Space Download")
 
-# 处理后台任务队列 (放在 UI 渲染之前)
 while not st.session_state.queue.empty():
     try:
         event_type, payload = st.session_state.queue.get_nowait()
@@ -882,8 +1081,10 @@ while not st.session_state.queue.empty():
             st.session_state.status = payload
         elif event_type == "task_count":
             st.session_state.task_counts = payload
-        elif event_type == "done":
+        elif event_type == "done" and not st.session_state._done_handled:
+            st.session_state._done_handled = True
             st.session_state.running = False
+            st.session_state.worker = None
             if payload == "success":
                 failed_count = st.session_state.task_counts.get("failed", 0)
                 if failed_count:
@@ -893,17 +1094,13 @@ while not st.session_state.queue.empty():
                     st.session_state.status = "✅ 下载完成"
                     append_log("任务已全部完成")
                 st.session_state.progress = 1.0
-                st.session_state.show_success = False
             elif payload == "stopped":
                 st.session_state.status = "⏹️ 已停止"
-                st.session_state.show_success = False
                 append_log("用户已停止下载")
             elif payload.startswith("error:"):
                 st.session_state.last_error = payload[6:]
                 st.session_state.status = "❌ 下载失败"
-                st.session_state.show_success = False
                 append_log(f"错误: {st.session_state.last_error}")
-            st.rerun()
     except queue.Empty:
         break
 
@@ -943,96 +1140,53 @@ if start_btn:
         st.session_state.stop_event = threading.Event()
         st.session_state.queue = queue.Queue()
         st.session_state.running = True
+        st.session_state._done_handled = False
         st.session_state.task_counts = {"current": 0, "total": 0, "completed": 0, "failed": 0}
         append_log("开始新任务...")
         append_log(f"已接收 {len(input_urls)} 个链接")
         if page_selection:
             append_log(f"批量页码筛选: {','.join(str(x) for x in sorted(page_selection))}")
-        temp_dir = os.path.join(save_dir, ".yt_dlp_temp")
+
+        temp_dir = register_temp_path(os.path.join(save_dir, ".yt_dlp_temp", st.session_state.sid))
         os.makedirs(temp_dir, exist_ok=True)
 
-        # 修复 Cookie 弃用警告：将 Cookie 写入临时文件
-        cookie_path = os.path.join(temp_dir, f"ph_cookies_{st.session_state.sid}.txt")
-        with open(cookie_path, "w") as f:
-            f.write("# Netscape HTTP Cookie File\n")
-            f.write(".pornhub.com\tTRUE\t/\tFALSE\t0\tage_verified\t1\n")
-            f.write(".pornhub.com\tTRUE\t/\tFALSE\t0\taccessAgeDisclaimerPH\t1\n")
-            f.write(".pornhub.com\tTRUE\t/\tFALSE\t0\taccessPH\t1\n")
-            f.write(".pornhub.com\tTRUE\t/\tFALSE\t0\taccessAgeDisclaimerUK\t1\n")
-
-        # 检查 ffmpeg 路径
-        ffmpeg_path = "/opt/homebrew/bin/ffmpeg"
-        if not os.path.exists(ffmpeg_path):
-            ffmpeg_path = "ffmpeg"
-
-        opts = {
-            "format": quality_options[quality],
-            "n_threads": 3,
-            "outtmpl": {
-                "default": f"{filename_tmpl}.%(ext)s",
-                "thumbnail": f"{filename_tmpl}.%(ext)s",
-            },
-            "writethumbnail": embed_thumbnail,
-            "postprocessors": [
-                {
-                    "key": "FFmpegVideoConvertor",
-                    "preferedformat": out_format,
-                },
-            ],
-            "noplaylist": False,
-            "restrictfilenames": False,
-            "noprogress": True,
-            "concurrent_fragment_downloads": 8,
-            "merge_output_format": out_format,
-            "ffmpeg_location": ffmpeg_path,
-            "paths": {
-                "home": save_dir,
-                "temp": temp_dir,
-            },
-            "keep_fragments": False,
-            "nopart": True,
-            "nocheckcertificate": True,
-            "socket_timeout": 30,
-            "retries": 5,
-            "fragment_retries": 5,
-            "http_chunk_size": 0,
-            "hls_use_mpegts": True,
-            "cookiefile": cookie_path,
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-                "Referer": "https://www.pornhub.com/",
-            },
-        }
-        if embed_thumbnail:
-            # 我们已经通过 requests 优先下载了封面图到目标文件夹
-            # 这里的 EmbedThumbnail 在没有 mutagen/AtomicParsley 的环境下极其容易失败
-            # 为了防止任务报错中断，我们不再添加这个后置处理器，改由前面的逻辑直接保存封面文件
-            opts["writethumbnail"] = False  # 禁用 yt-dlp 自带的，改用我们的
-            opts["nocheckcertificate"] = True
-        if use_proxy and proxy_url:
-            opts["proxy"] = proxy_url
-        if username and password:
-            opts["username"] = username
-            opts["password"] = password
+        cookiefiles = {"default": None, "pornhub": None}
+        cookiefiles["pornhub"] = create_temp_cookie_file(temp_dir, f"ph_cookies_{st.session_state.sid}.txt", lines=PORNHUB_COOKIE_LINES)
         if use_cookies and cookie_file:
-            temp_cookie = os.path.join(temp_dir, f"user_cookies_{st.session_state.sid}.txt")
-            with open(temp_cookie, "wb") as f:
-                f.write(cookie_file.getbuffer())
-            opts["cookiefile"] = temp_cookie  # 用户上传的覆盖内置的
+            cookiefiles["default"] = create_temp_cookie_file(
+                temp_dir,
+                f"user_cookies_{st.session_state.sid}.txt",
+                payload=cookie_file.getbuffer(),
+            )
+
+        ffmpeg_path = resolve_ffmpeg_path()
+
+        auth = None
+        if username and password:
+            auth = {"username": username, "password": password}
+
+        base_opts = build_base_opts(
+            quality_options[quality],
+            out_format,
+            filename_tmpl,
+            save_dir,
+            temp_dir,
+            ffmpeg_path,
+            proxy_url=proxy_url if use_proxy and proxy_url else None,
+            auth=auth,
+        )
+
         worker = threading.Thread(
             target=download_worker,
             args=(
                 st.session_state.queue,
                 st.session_state.stop_event,
                 input_urls,
-                opts,
+                base_opts,
                 translate_title,
-                save_dir,
-                filename_tmpl,
                 embed_thumbnail,
                 page_selection,
+                cookiefiles,
             ),
             daemon=True,
         )
@@ -1040,9 +1194,11 @@ if start_btn:
         worker.start()
         st.rerun()
 
+if st.session_state.running:
+    st.caption("下载进行中，界面会自动刷新。")
+
 col_prog, col_perc = st.columns([12, 1])
 with col_prog:
-    # 使用自定义 HTML 替代 st.progress
     progress_val = int(st.session_state.progress * 100)
     st.markdown(
         f"""
@@ -1057,7 +1213,6 @@ with col_perc:
         f"<div style='margin-top: 10px;'><b>{int(st.session_state.progress * 100)}%</b></div>", unsafe_allow_html=True
     )
 
-# 显示下载计数统计
 if st.session_state.task_counts["total"] > 0:
     curr = st.session_state.task_counts["current"]
     total = st.session_state.task_counts["total"]

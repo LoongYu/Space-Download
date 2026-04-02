@@ -1,85 +1,53 @@
-import PyInstaller.__main__
-import os
 import shutil
-import sys
 import subprocess
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DIST_DIR = PROJECT_ROOT / "dist"
+SPEC_PATH = PROJECT_ROOT / "SpaceDownload.spec"
+APP_PATH = DIST_DIR / "SpaceDownload.app"
+DMG_PATH = DIST_DIR / "SpaceDownload.dmg"
+
+
+
+def clean_build_artifacts():
+    for directory in (PROJECT_ROOT / "build", DIST_DIR):
+        if directory.exists():
+            shutil.rmtree(directory)
+
+
+
+def run_pyinstaller():
+    subprocess.run(
+        [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", str(SPEC_PATH)],
+        check=True,
+        cwd=PROJECT_ROOT,
+    )
+
 
 
 def build_mac_app():
     print("开始构建 macOS App...")
+    clean_build_artifacts()
+    run_pyinstaller()
+    print(f"\n✅ 构建完成：{APP_PATH}")
+    return APP_PATH
 
-    # 确保清理旧的构建目录
-    for d in ["build", "dist"]:
-        if os.path.exists(d):
-            try:
-                shutil.rmtree(d)
-            except Exception as e:
-                print(f"警告: 无法完全删除目录 {d}，尝试继续构建... ({e})")
-
-    # 找到 streamlit 的路径，因为需要打包它的静态资源
-    import streamlit
-
-    streamlit_path = os.path.dirname(streamlit.__file__)
-
-    # 使用 Python 3.11 的路径
-    python_exe = "/opt/homebrew/bin/python3.11"
-    if not os.path.exists(python_exe):
-        print(f"❌ 未找到 Python 3.11: {python_exe}")
-        sys.exit(1)
-
-    # 构建 PyInstaller 命令
-    cmd = [
-        python_exe,
-        "-m",
-        "PyInstaller",
-        "main.py",
-        "--name=SpaceDownload",
-        "--windowed",
-        "--onedir",
-        "--noconfirm",
-        "--clean",
-        "--add-data=yt_dlp_gui.py:.",
-        f"--add-data={streamlit_path}:streamlit",
-        "--collect-all=streamlit",
-        "--collect-all=webview",
-        "--collect-all=yt_dlp",
-        "--exclude-module=matplotlib",
-        "--exclude-module=notebook",
-        "--exclude-module=test",
-    ]
-
-    # 执行构建
-    try:
-        subprocess.run(cmd, check=True)
-        print("\n✅ 构建完成！请在 dist 目录下找到 SpaceDownload.app")
-    except subprocess.CalledProcessError as e:
-        print(f"\n❌ 构建失败: {e}")
-        sys.exit(1)
 
 
 def build_dmg():
-    """构建 macOS DMG 安装包"""
     print("开始构建 macOS DMG 安装包...")
-
-    # 先构建 app
     build_mac_app()
 
-    app_path = "dist/SpaceDownload.app"
-    dmg_name = "SpaceDownload.dmg"
-    dmg_path = f"dist/{dmg_name}"
-
-    if not os.path.exists(app_path):
-        print(f"❌ 未找到 {app_path}")
+    if not APP_PATH.exists():
+        print(f"❌ 未找到 {APP_PATH}")
         sys.exit(1)
 
-    # 删除旧的 dmg
-    if os.path.exists(dmg_path):
-        os.remove(dmg_path)
+    if DMG_PATH.exists():
+        DMG_PATH.unlink()
 
-    # 使用 create-dmg 或 hdiutil 创建 dmg
     print("正在创建 DMG 文件...")
-
-    # 尝试使用 create-dmg
     try:
         subprocess.run(
             [
@@ -103,15 +71,22 @@ def build_dmg():
                 "--app-drop-link",
                 "600",
                 "185",
-                dmg_path,
-                app_path,
+                str(DMG_PATH),
+                str(APP_PATH),
             ],
             check=True,
+            cwd=PROJECT_ROOT,
         )
-        print(f"\n✅ DMG 构建完成: {dmg_path}")
     except FileNotFoundError:
-        # 如果没有 create-dmg，使用 hdiutil
         print("create-dmg 未安装，使用 hdiutil...")
+        staging_dir = DIST_DIR / "dmg-staging"
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        staging_dir.mkdir(parents=True)
+        shutil.copytree(APP_PATH, staging_dir / APP_PATH.name)
+        applications_link = staging_dir / "Applications"
+        if not applications_link.exists():
+            applications_link.symlink_to("/Applications")
         try:
             subprocess.run(
                 [
@@ -120,18 +95,19 @@ def build_dmg():
                     "-volname",
                     "Space Download",
                     "-srcfolder",
-                    app_path,
+                    str(staging_dir),
                     "-ov",
                     "-format",
                     "UDZO",
-                    dmg_path,
+                    str(DMG_PATH),
                 ],
                 check=True,
+                cwd=PROJECT_ROOT,
             )
-            print(f"\n✅ DMG 构建完成: {dmg_path}")
-        except subprocess.CalledProcessError as e:
-            print(f"\n❌ DMG 构建失败: {e}")
-            sys.exit(1)
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+    print(f"\n✅ DMG 构建完成: {DMG_PATH}")
+    return DMG_PATH
 
 
 if __name__ == "__main__":

@@ -48,7 +48,11 @@ git clone https://github.com/LoongYu/Space-Download.git
 cd Space-Download
 
 # 安装依赖
-pip install streamlit pywebview deep-translator
+pip install -e ".[default]"
+pip install streamlit pywebview deep-translator pyinstaller requests
+
+# 可选：安装 ffmpeg（视频转换/合并需要）
+# brew install ffmpeg
 
 # 运行
 python main.py
@@ -59,11 +63,14 @@ python main.py
 ### macOS DMG
 
 ```bash
-# 构建 dmg 并创建 Release
-python3.11 build_release.py YYYYMMDDNN
+# 构建本地 .app
+python build_app.py
 
-# 仅构建 dmg
-python3.11 build_app.py dmg
+# 构建本地 dmg
+python build_app.py dmg
+
+# 构建 dmg 并创建 GitHub Release
+python build_release.py YYYYMMDDNN
 ```
 
 ### Windows EXE
