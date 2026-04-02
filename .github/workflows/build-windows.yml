@@ -12,20 +12,7 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runs_on: windows-latest
-            runtime_requirements: bundle/requirements/requirements-win-x64.txt
-            pyinstaller_requirements: bundle/requirements/requirements-win-x64-pyinstaller.txt
-          - arch: arm64
-            runs_on: windows-11-arm
-            runtime_requirements: bundle/requirements/requirements-win-arm64.txt
-            pyinstaller_requirements: bundle/requirements/requirements-win-arm64-pyinstaller.txt
-
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -38,29 +25,24 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r "${{ matrix.runtime_requirements }}"
-          python -m pip install -r "${{ matrix.pyinstaller_requirements }}"
-          if ("${{ matrix.arch }}" -eq "arm64") {
-            python -m pip install --no-deps streamlit==1.50.0 pywebview deep-translator
-            python -m pip install altair blinker bottle cachetools click clr_loader numpy "packaging<26" "pandas<3,>=1.4.0" pillow protobuf proxy_tools requests tenacity toml typing-extensions gitpython pydeck pythonnet tornado watchdog
-          } else {
-            python -m pip install streamlit==1.50.0 pywebview deep-translator
-          }
+          python -m pip install -r "bundle/requirements/requirements-win-x64.txt"
+          python -m pip install -r "bundle/requirements/requirements-win-x64-pyinstaller.txt"
+          python -m pip install streamlit==1.50.0 pywebview deep-translator
 
       - name: Build exe
         run: |
           python -m PyInstaller --noconfirm --clean SpaceDownload.spec
-          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}"
+          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ github.event.inputs.release_name }}-windows-x64"
 
       - name: Zip dist folder
         run: |
-          $bundle = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}"
+          $bundle = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-x64"
           Compress-Archive -Path "dist/$bundle" -DestinationPath "dist/$bundle.zip"
 
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}.zip"
+          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-x64.zip"
           gh release delete-asset "${{ github.event.inputs.release_name }}" "$asset" -y 2>$null
           gh release upload "${{ github.event.inputs.release_name }}" "dist/$asset"

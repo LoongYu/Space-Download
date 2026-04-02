@@ -1017,17 +1017,14 @@ with st.sidebar:
                 )
                 chosen = result.stdout.strip()
             elif platform.system() == "Windows":
-                result = subprocess.run(
-                    [
-                        "powershell",
-                        "-Command",
-                        "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if($f.ShowDialog() -eq 'OK'){$f.SelectedPath}",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-                chosen = result.stdout.strip()
+                import tkinter as tk
+                from tkinter import filedialog
+
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes("-topmost", True)
+                chosen = filedialog.askdirectory(title="选择保存目录") or ""
+                root.destroy()
             if chosen:
                 st.session_state["_pending_download_path"] = chosen
                 st.rerun()

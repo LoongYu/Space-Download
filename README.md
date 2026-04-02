@@ -39,7 +39,6 @@ Space Download 是一个基于 yt-dlp 的桌面视频下载工具，提供简洁
 |------|------|
 | macOS | SpaceDownload-YYYYMMDDNN.dmg |
 | Windows x64 | SpaceDownload-YYYYMMDDNN-windows-x64.zip |
-| Windows ARM64 | SpaceDownload-YYYYMMDDNN-windows-arm64.zip |
 
 ## 从源码运行
 
