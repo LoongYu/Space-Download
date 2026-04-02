@@ -14,7 +14,7 @@ datas = [
 ]
 binaries = []
 hiddenimports = []
-for package_name in ('streamlit', 'webview', 'yt_dlp', 'deep_translator'):
+for package_name in ('streamlit', 'webview', 'yt_dlp', 'deep_translator', 'proxy_tools'):
     package_datas, package_binaries, package_hiddenimports = collect_all(package_name)
     datas += package_datas
     binaries += package_binaries
