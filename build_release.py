@@ -95,7 +95,7 @@ def main():
 
     print("\n✅ 完成！")
     print("macOS: 已上传")
-    print("Windows: 构建中，完成后需手动上传到 Release")
+    print("Windows: GitHub Actions 构建中，将自动上传 x64 和 ARM64 到 Release")
 
 
 if __name__ == "__main__":

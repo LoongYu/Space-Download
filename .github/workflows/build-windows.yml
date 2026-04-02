@@ -12,7 +12,21 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runs_on: windows-latest
+            runtime_requirements: bundle/requirements/requirements-win-x64.txt
+            pyinstaller_requirements: bundle/requirements/requirements-win-x64-pyinstaller.txt
+          - arch: arm64
+            runs_on: windows-11-arm
+            runtime_requirements: bundle/requirements/requirements-win-arm64.txt
+            pyinstaller_requirements: bundle/requirements/requirements-win-arm64-pyinstaller.txt
+
+    runs-on: ${{ matrix.runs_on }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,29 +36,25 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pyinstaller streamlit pywebview deep-translator
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r "${{ matrix.runtime_requirements }}"
+          python -m pip install -r "${{ matrix.pyinstaller_requirements }}"
 
       - name: Build exe
-        run: >
-          pyinstaller main.py
-          --name=SpaceDownload-${{ github.event.inputs.release_name }}
-          --windowed --onedir --noconfirm --clean
-          "--add-data=yt_dlp_gui.py;."
-          --collect-all=streamlit
-          --collect-all=webview
-          --collect-all=yt_dlp
-          --collect-all=blinker
-          --exclude-module=matplotlib
-          --exclude-module=notebook
-          --exclude-module=test
+        run: |
+          python -m PyInstaller --noconfirm --clean SpaceDownload.spec
+          Rename-Item -Path "dist/SpaceDownload" -NewName "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}"
 
       - name: Zip dist folder
-        run: Compress-Archive -Path "dist/SpaceDownload-${{ github.event.inputs.release_name }}" -DestinationPath "dist/SpaceDownload-${{ github.event.inputs.release_name }}.zip"
+        run: |
+          $bundle = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}"
+          Compress-Archive -Path "dist/$bundle" -DestinationPath "dist/$bundle.zip"
 
       - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}.zip"
+          $asset = "SpaceDownload-${{ github.event.inputs.release_name }}-windows-${{ matrix.arch }}.zip"
           gh release delete-asset "${{ github.event.inputs.release_name }}" "$asset" -y 2>$null
           gh release upload "${{ github.event.inputs.release_name }}" "dist/$asset"
