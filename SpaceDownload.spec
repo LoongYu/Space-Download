@@ -18,6 +18,8 @@ hiddenimports = [
     'bottle',
     'clr_loader',
     'pythonnet',
+    'tkinter',
+    'tkinter.filedialog',
 ]
 for package_name in ('streamlit', 'webview', 'yt_dlp', 'deep_translator', 'proxy_tools'):
     package_datas, package_binaries, package_hiddenimports = collect_all(package_name)
