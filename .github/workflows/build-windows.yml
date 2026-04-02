@@ -42,7 +42,7 @@ jobs:
           python -m pip install -r "${{ matrix.pyinstaller_requirements }}"
           if ("${{ matrix.arch }}" -eq "arm64") {
             python -m pip install --no-deps streamlit==1.50.0 pywebview deep-translator
-            python -m pip install altair blinker cachetools click numpy "packaging<26" "pandas<3,>=1.4.0" pillow protobuf requests tenacity toml typing-extensions gitpython pydeck tornado watchdog
+            python -m pip install altair blinker bottle cachetools click clr_loader numpy "packaging<26" "pandas<3,>=1.4.0" pillow protobuf proxy_tools requests tenacity toml typing-extensions gitpython pydeck pythonnet tornado watchdog
           } else {
             python -m pip install streamlit==1.50.0 pywebview deep-translator
           }
