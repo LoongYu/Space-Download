@@ -11,7 +11,7 @@ protocol ProcessExecuting: AnyObject {
     func cancel()
 }
 
-final class ProcessExecutor: ProcessExecuting {
+final class ProcessExecutor: ProcessExecuting, @unchecked Sendable {
     private let lock = NSLock()
     private var currentProcess: Process?
 
@@ -20,6 +20,7 @@ final class ProcessExecutor: ProcessExecuting {
             let process = Process()
             let pipe = Pipe()
             let output = ProcessOutputAccumulator(onLine: onLine)
+            let readLock = NSLock()
 
             process.executableURL = executable
             process.arguments = arguments
@@ -31,6 +32,8 @@ final class ProcessExecutor: ProcessExecuting {
             ]) { _, new in new }
 
             pipe.fileHandleForReading.readabilityHandler = { handle in
+                readLock.lock()
+                defer { readLock.unlock() }
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
                 output.consume(String(decoding: data, as: UTF8.self))
@@ -38,19 +41,22 @@ final class ProcessExecutor: ProcessExecuting {
 
             process.terminationHandler = { [weak self] terminatedProcess in
                 pipe.fileHandleForReading.readabilityHandler = nil
-                let remaining = pipe.fileHandleForReading.readDataToEndOfFile()
-                if !remaining.isEmpty {
-                    output.consume(String(decoding: remaining, as: UTF8.self))
+
+                // Serialize the final drain with any in-flight readability
+                // callback before taking the completed output snapshot.
+                readLock.lock()
+                let remainingData = pipe.fileHandleForReading.readDataToEndOfFile()
+                if !remainingData.isEmpty {
+                    output.consume(String(decoding: remainingData, as: UTF8.self))
                 }
                 output.flush()
-                self?.lock.lock()
-                if self?.currentProcess === terminatedProcess {
-                    self?.currentProcess = nil
-                }
-                self?.lock.unlock()
+                let lines = output.snapshot()
+                readLock.unlock()
+
+                self?.clearCurrentProcess(terminatedProcess)
                 continuation.resume(returning: ProcessExecutionResult(
                     exitCode: terminatedProcess.terminationStatus,
-                    lines: output.snapshot()
+                    lines: lines
                 ))
             }
 
@@ -59,17 +65,26 @@ final class ProcessExecutor: ProcessExecuting {
                 currentProcess = process
                 lock.unlock()
                 try process.run()
+                try? pipe.fileHandleForWriting.close()
             } catch {
                 pipe.fileHandleForReading.readabilityHandler = nil
-                lock.lock()
-                currentProcess = nil
-                lock.unlock()
+                try? pipe.fileHandleForWriting.close()
+                try? pipe.fileHandleForReading.close()
+                clearCurrentProcess(process)
                 continuation.resume(returning: ProcessExecutionResult(
                     exitCode: -1,
                     lines: [error.localizedDescription]
                 ))
             }
         }
+    }
+
+    private func clearCurrentProcess(_ process: Process) {
+        lock.lock()
+        if currentProcess === process {
+            currentProcess = nil
+        }
+        lock.unlock()
     }
 
     func cancel() {

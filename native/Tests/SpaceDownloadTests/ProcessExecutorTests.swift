@@ -4,15 +4,17 @@ import XCTest
 
 final class ProcessExecutorTests: XCTestCase {
     func testStreamsAndCollectsProcessOutput() async {
-        let executor = ProcessExecutor()
-        let result = await executor.run(
-            executable: URL(fileURLWithPath: "/usr/bin/printf"),
-            arguments: ["first\\nsecond\\n"],
-            onLine: { _ in }
-        )
+        for _ in 0..<25 {
+            let executor = ProcessExecutor()
+            let result = await executor.run(
+                executable: URL(fileURLWithPath: "/usr/bin/printf"),
+                arguments: ["first\\nsecond\\n"],
+                onLine: { _ in }
+            )
 
-        XCTAssertEqual(result.exitCode, 0)
-        XCTAssertEqual(result.lines, ["first", "second"])
+            XCTAssertEqual(result.exitCode, 0)
+            XCTAssertEqual(result.lines, ["first", "second"])
+        }
     }
 
     func testLocatesToolsFromPath() throws {
