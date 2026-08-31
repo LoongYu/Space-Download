@@ -5,6 +5,17 @@ import XCTest
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testDouyinRequiresItsOwnManualCookiesAndDoesNotReuseTikTok() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let appState = AppState(settingsStore: SettingsStore(fileURL: directory.appendingPathComponent("settings.json")))
+        appState.linkText = "https://www.douyin.com/video/7530000000000000000"
+        appState.settingsStore.settings.sites.douyin.useCookies = true
+        appState.tiktokCookiesFileURL = URL(fileURLWithPath: "/tmp/tiktok.txt")
+        XCTAssertEqual(appState.detectedSiteLabel, "抖音")
+        appState.startDownload()
+        XCTAssertEqual(appState.validationMessage, "抖音已启用 Cookies，请先选择 cookies.txt")
+    }
     func testTikTokRequiresOnlyItsOwnManuallySelectedCookiesFile() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

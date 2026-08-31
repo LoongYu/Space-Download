@@ -21,7 +21,7 @@ final class SettingsStoreTests: XCTestCase {
         try JSONSerialization.data(withJSONObject: legacy).write(to: file)
 
         let migrated = SettingsStore(fileURL: file).settings
-        XCTAssertEqual(migrated.schemaVersion, 4)
+        XCTAssertEqual(migrated.schemaVersion, 5)
         XCTAssertFalse(migrated.sites.pornhub.media.translateTitle)
         XCTAssertEqual(migrated.sites.youtube.requestIntervalSeconds, 9)
         XCTAssertTrue(migrated.sites.x.useCookies)
@@ -61,7 +61,7 @@ final class SettingsStoreTests: XCTestCase {
         store.settings.outputFormat = .webm
         let reloaded = SettingsStore(fileURL: fileURL)
         XCTAssertEqual(reloaded.settings.outputFormat, .webm)
-        XCTAssertEqual(reloaded.settings.schemaVersion, 4)
+        XCTAssertEqual(reloaded.settings.schemaVersion, 5)
         XCTAssertEqual(reloaded.settings.sites.pornhub.media.filenameTemplate, .uploaderDateTitle)
         XCTAssertEqual(reloaded.settings.sites.youtube.media.filenameTemplate, .uploaderDateTitle)
         XCTAssertTrue(reloaded.settings.sites.pornhub.media.translateTitle)
@@ -182,7 +182,7 @@ final class SettingsStoreTests: XCTestCase {
         try Data(versionTwoJSON.utf8).write(to: fileURL)
 
         let settings = SettingsStore(fileURL: fileURL).settings
-        XCTAssertEqual(settings.schemaVersion, 4)
+        XCTAssertEqual(settings.schemaVersion, 5)
         XCTAssertEqual(settings.common.rateLimit, .unlimited)
         XCTAssertEqual(settings.common.concurrentFragments, 8)
         XCTAssertEqual(settings.sites.pornhub.media.filenameTemplate, .title)
@@ -193,6 +193,33 @@ final class SettingsStoreTests: XCTestCase {
         let persisted = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
         )
-        XCTAssertEqual(persisted["schema_version"] as? Int, 4)
+        XCTAssertEqual(persisted["schema_version"] as? Int, 5)
+    }
+
+    func testSchemaFourAddsIndependentDouyinDefaultsWithoutLosingExistingSites() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("settings.json")
+        var existing = DownloadSettings.defaults
+        existing.schemaVersion = 4
+        existing.sites.pornhub.username = "kept"
+        existing.sites.youtube.requestIntervalSeconds = 11
+        existing.sites.x.useCookies = true
+        existing.sites.tiktok.media.filenameTemplate = .title
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(existing)) as! [String: Any]
+        var sites = object["sites"] as! [String: Any]
+        sites.removeValue(forKey: "douyin")
+        object["sites"] = sites
+        try JSONSerialization.data(withJSONObject: object).write(to: file)
+
+        let migrated = SettingsStore(fileURL: file).settings
+        XCTAssertEqual(migrated.schemaVersion, 5)
+        XCTAssertEqual(migrated.sites.pornhub.username, "kept")
+        XCTAssertEqual(migrated.sites.youtube.requestIntervalSeconds, 11)
+        XCTAssertTrue(migrated.sites.x.useCookies)
+        XCTAssertEqual(migrated.sites.tiktok.media.filenameTemplate, .title)
+        XCTAssertEqual(migrated.sites.douyin.media, .douyinDefaults)
+        XCTAssertFalse(migrated.sites.douyin.useCookies)
     }
 }

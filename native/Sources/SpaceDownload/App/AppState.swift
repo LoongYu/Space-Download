@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
     @Published var youtubeCookiesFileURL: URL?
     @Published var xCookiesFileURL: URL?
     @Published var tiktokCookiesFileURL: URL?
+    @Published var douyinCookiesFileURL: URL?
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
@@ -70,6 +71,7 @@ final class AppState: ObservableObject {
         case .youtube: youtubeCookiesFileURL = panel.url
         case .x: xCookiesFileURL = panel.url
         case .tiktok: tiktokCookiesFileURL = panel.url
+        case .douyin: douyinCookiesFileURL = panel.url
         }
     }
 
@@ -106,6 +108,12 @@ final class AppState: ObservableObject {
            settingsStore.settings.sites.tiktok.useCookies,
            tiktokCookiesFileURL == nil {
             validationMessage = "TikTok 已启用 Cookies，请先选择 cookies.txt"
+            return
+        }
+        if detectedSites.contains(.douyin),
+           settingsStore.settings.sites.douyin.useCookies,
+           douyinCookiesFileURL == nil {
+            validationMessage = "抖音已启用 Cookies，请先选择 cookies.txt"
             return
         }
 
@@ -148,7 +156,8 @@ final class AppState: ObservableObject {
                 cookiesFileURL: cookiesFileURL,
                 youtubeCookiesFileURL: youtubeCookiesFileURL,
                 xCookiesFileURL: xCookiesFileURL,
-                tiktokCookiesFileURL: tiktokCookiesFileURL
+                tiktokCookiesFileURL: tiktokCookiesFileURL,
+                douyinCookiesFileURL: douyinCookiesFileURL
             ),
             selectedPages: selectedPages,
             youtubePlaylistItems: youtubePlaylistItems

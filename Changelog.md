@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 (2026-08-31)
+
+### 抖音公开单视频适配
+
+- 新增独立的抖音 `SiteID`、adapter、设置、Cookie 会话状态与图标，不复用 TikTok 域名、规则或 Cookie
+- 仅接受公开 `douyin.com/video/ID` 标准链接及交由 yt-dlp 安全重定向的 `v.douyin.com` 短链；未实现 Instagram 或 Telegram
+- 沿用通用 metadata、实时 UI 进度、非百分比日志、5 次重试、失败继续与重复 ID 跳过核心，不改 Pornhub、YouTube、X、TikTok 专属行为
+- schema 升级至 v5；v4 及更早配置自动补齐抖音默认项，并保留所有既有站点配置
+- 抖音只接受用户手动选择的独立 `cookies.txt`，不读取 Chrome 或任何浏览器认证数据
+- 匿名真实探测在 metadata 阶段被抖音风控阻止并明确要求 fresh cookies；未获得可信 metadata，因此采用保守的标题(ID)默认命名、关闭标题翻译，封面在运行时从真实 metadata 候选中选最高像素
+- 因 metadata 未成功，未伪称真实下载或 ffprobe 成功；手动 Cookie 是合理但本次未持有 Cookie 验证的降级，详见 `native/DOUYIN_LIVE_PROBE.md`
+- Swift 测试扩展至 79 项、0 失败，并生成和目视检查抖音设置页 PNG
+
 ## 0.6.0 (2026-08-31)
 
 ### TikTok 公开单视频适配

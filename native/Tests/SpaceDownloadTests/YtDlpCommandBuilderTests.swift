@@ -172,4 +172,29 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         let output = try XCTUnwrap(arguments.firstIndex(of: "--output"))
         XCTAssertEqual(arguments[output + 1], "%(uploader)s/%(upload_date)s-%(title)s(%(id)s).%(ext)s")
     }
+
+    func testBuildsDouyinCommandWithIndependentSettingsAndCookies() throws {
+        var settings = DownloadSettings.defaults
+        settings.sites.douyin.media.filenameTemplate = .dateTitle
+        let url = try XCTUnwrap(URL(string: "https://www.douyin.com/video/7530000000000000000"))
+        let douyinCookies = URL(fileURLWithPath: "/tmp/douyin.txt")
+        let request = DownloadRequest(sourceURLs: [url], settings: settings, credentials: DownloadCredentials(
+            cookiesFileURL: URL(fileURLWithPath: "/tmp/pornhub.txt"),
+            youtubeCookiesFileURL: URL(fileURLWithPath: "/tmp/youtube.txt"),
+            xCookiesFileURL: URL(fileURLWithPath: "/tmp/x.txt"),
+            tiktokCookiesFileURL: URL(fileURLWithPath: "/tmp/tiktok.txt"),
+            douyinCookiesFileURL: douyinCookies
+        ), selectedPages: nil)
+        let arguments = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"), ffmpeg: nil
+        )).downloadArguments(for: DownloadItem(url: url, title: "抖音", page: nil, pageIndex: nil),
+                             request: request, temporaryDirectory: URL(fileURLWithPath: "/tmp/work"))
+
+        XCTAssertTrue(arguments.contains(douyinCookies.path))
+        XCTAssertFalse(arguments.contains("/tmp/tiktok.txt"))
+        XCTAssertFalse(arguments.contains("--cookies-from-browser"))
+        XCTAssertFalse(arguments.contains("--impersonate"))
+        let output = try XCTUnwrap(arguments.firstIndex(of: "--output"))
+        XCTAssertEqual(arguments[output + 1], "%(upload_date)s-%(title)s(%(id)s).%(ext)s")
+    }
 }

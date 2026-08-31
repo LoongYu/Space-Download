@@ -79,6 +79,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
     case youtube
     case x
     case tiktok
+    case douyin
 
     var id: String { rawValue }
 
@@ -88,6 +89,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
         case .youtube: "YouTube"
         case .x: "X"
         case .tiktok: "TikTok"
+        case .douyin: "抖音"
         }
     }
 
@@ -100,6 +102,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
     case youtube
     case x
     case tiktok
+    case douyin
 
     var id: String { rawValue }
 
@@ -110,6 +113,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .youtube: "YouTube"
         case .x: "X"
         case .tiktok: "TikTok"
+        case .douyin: "抖音"
         }
     }
 
@@ -120,6 +124,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .youtube: .youtube
         case .x: .x
         case .tiktok: .tiktok
+        case .douyin: .douyin
         }
     }
 }
@@ -208,19 +213,26 @@ struct TikTokSiteSettings: Codable, Equatable {
     var useCookies: Bool
 }
 
+struct DouyinSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
+    var useCookies: Bool
+}
+
 struct PerSiteDownloadSettings: Codable, Equatable {
     var pornhub: PornhubSiteSettings
     var youtube: YouTubeSiteSettings
     var x: XSiteSettings
     var tiktok: TikTokSiteSettings
+    var douyin: DouyinSiteSettings
 
-    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x, tiktok }
+    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x, tiktok, douyin }
 
-    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings, tiktok: TikTokSiteSettings) {
+    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings, tiktok: TikTokSiteSettings, douyin: DouyinSiteSettings) {
         self.pornhub = pornhub
         self.youtube = youtube
         self.x = x
         self.tiktok = tiktok
+        self.douyin = douyin
     }
 
     init(from decoder: Decoder) throws {
@@ -231,6 +243,8 @@ struct PerSiteDownloadSettings: Codable, Equatable {
             ?? XSiteSettings(media: .defaults, useCookies: false)
         tiktok = try values.decodeIfPresent(TikTokSiteSettings.self, forKey: .tiktok)
             ?? TikTokSiteSettings(media: .tiktokDefaults, useCookies: false)
+        douyin = try values.decodeIfPresent(DouyinSiteSettings.self, forKey: .douyin)
+            ?? DouyinSiteSettings(media: .douyinDefaults, useCookies: false)
     }
 }
 
@@ -240,6 +254,7 @@ extension DownloadSettings {
         case .youtube: sites.youtube.media
         case .x: sites.x.media
         case .tiktok: sites.tiktok.media
+        case .douyin: sites.douyin.media
         case .pornhub, .none: sites.pornhub.media
         }
     }
@@ -253,7 +268,7 @@ struct DownloadSettings: Codable, Equatable {
 
     static var defaults: DownloadSettings {
         DownloadSettings(
-            schemaVersion: 4,
+            schemaVersion: 5,
             selectedSite: .automatic,
             common: CommonDownloadSettings(
                 downloadPath: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -283,7 +298,8 @@ struct DownloadSettings: Codable, Equatable {
                     useCookies: false
                 ),
                 x: XSiteSettings(media: .defaults, useCookies: false),
-                tiktok: TikTokSiteSettings(media: .tiktokDefaults, useCookies: false)
+                tiktok: TikTokSiteSettings(media: .tiktokDefaults, useCookies: false),
+                douyin: DouyinSiteSettings(media: .douyinDefaults, useCookies: false)
             )
         )
     }
@@ -329,7 +345,7 @@ struct DownloadSettings: Codable, Equatable {
             let storedVersion = try modern.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 2
             selectedSite = try modern.decodeIfPresent(SiteSelection.self, forKey: .selectedSite) ?? .automatic
             if storedVersion >= 3 {
-                schemaVersion = 4
+                schemaVersion = 5
                 common = try modern.decodeIfPresent(CommonDownloadSettings.self, forKey: .common) ?? defaults.common
                 sites = try modern.decodeIfPresent(PerSiteDownloadSettings.self, forKey: .sites) ?? defaults.sites
             } else {
@@ -341,7 +357,7 @@ struct DownloadSettings: Codable, Equatable {
                     translateTitle: oldCommon?.translateTitle ?? defaults.sites.pornhub.media.translateTitle,
                     embedThumbnail: oldCommon?.embedThumbnail ?? defaults.sites.pornhub.media.embedThumbnail
                 )
-                schemaVersion = 4
+                schemaVersion = 5
                 common = CommonDownloadSettings(
                     downloadPath: oldCommon?.downloadPath ?? defaults.downloadPath,
                     quality: oldCommon?.quality ?? defaults.quality,
@@ -369,14 +385,15 @@ struct DownloadSettings: Codable, Equatable {
                         useCookies: oldSites?.youtube.useCookies ?? defaults.sites.youtube.useCookies
                     ),
                     x: defaults.sites.x,
-                    tiktok: defaults.sites.tiktok
+                    tiktok: defaults.sites.tiktok,
+                    douyin: defaults.sites.douyin
                 )
             }
             return
         }
 
         let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        schemaVersion = 4
+        schemaVersion = 5
         selectedSite = .automatic
         let legacyMedia = SiteMediaSettings(
             filenameTemplate: try legacy.decodeIfPresent(FilenameTemplate.self, forKey: .filenameTemplate) ?? defaults.filenameTemplate,
@@ -416,6 +433,15 @@ extension SiteMediaSettings {
     static let tiktokDefaults = SiteMediaSettings(
         filenameTemplate: .uploaderDateTitle,
         customTemplate: "%(uploader)s/%(upload_date)s-%(title)s(%(id)s)",
+        translateTitle: false,
+        embedThumbnail: true
+    )
+
+    // Anonymous live probing is currently blocked before metadata; keep the default
+    // limited to the universally required title/id fields until Cookie-backed metadata is verified.
+    static let douyinDefaults = SiteMediaSettings(
+        filenameTemplate: .title,
+        customTemplate: "%(title)s(%(id)s)",
         translateTitle: false,
         embedThumbnail: true
     )

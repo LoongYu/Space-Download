@@ -155,6 +155,33 @@ final class SiteAdapterTests: XCTestCase {
         XCTAssertEqual(thumbnail.headers["User-Agent"], "thumbnail-agent")
     }
 
+    func testDouyinIsIndependentAndMatchesOnlyPublicVideoAndSafeShortLinks() throws {
+        let adapter = DouyinAdapter()
+        let standard = try XCTUnwrap(URL(string: "https://www.douyin.com/video/7530000000000000000"))
+        let short = try XCTUnwrap(URL(string: "https://v.douyin.com/AbCdEfGh/"))
+        XCTAssertTrue(adapter.matches(standard))
+        XCTAssertTrue(adapter.matches(short))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://www.douyin.com/user/example"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://www.tiktok.com/@user/video/7530000000000000000"))))
+        XCTAssertEqual(SiteRegistry.adapter(for: standard).siteID, .douyin)
+        XCTAssertEqual(SiteRegistry.adapter(for: short).siteID, .douyin)
+        XCTAssertNotEqual(SiteRegistry.adapter(for: standard).siteID, TikTokAdapter().siteID)
+    }
+
+    func testDouyinSelectsLargestMetadataThumbnailAndMergesHeaders() throws {
+        let thumbnail = try XCTUnwrap(DouyinAdapter().preferredThumbnail(from: [
+            "http_headers": ["Referer": "https://www.douyin.com/"],
+            "thumbnails": [
+                ["url": "https://example.com/360.jpeg", "width": 360, "height": 640],
+                ["url": "https://example.com/1080.jpeg", "width": 1080, "height": 1920,
+                 "http_headers": ["User-Agent": "douyin-thumbnail"]],
+            ],
+        ]))
+        XCTAssertEqual(thumbnail.url.absoluteString, "https://example.com/1080.jpeg")
+        XCTAssertEqual(thumbnail.headers["Referer"], "https://www.douyin.com/")
+        XCTAssertEqual(thumbnail.headers["User-Agent"], "douyin-thumbnail")
+    }
+
     func testYouTubeJavaScriptRuntimeLocatorFindsNodeInConfiguredDirectory() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

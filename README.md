@@ -20,6 +20,7 @@ Space Download 是一个基于 yt-dlp 的桌面视频下载工具，提供简洁
 - 🧩 原生 macOS 版使用独立站点适配器，站点设置互不混用并可继续扩展
 - 𝕏 原生 macOS 版支持 X 单条 status 的视频、animated GIF 与单帖多视频资源；X Cookies 独立且仅手动选择
 - 🎵 原生 macOS 版支持公开 TikTok 单视频与安全短链入口；TikTok 设置和手动 Cookies 文件完全独立
+- 🎶 原生 macOS 版支持抖音公开单视频标准链接和安全短链入口；抖音与 TikTok 的设置、图标和手动 Cookies 完全隔离
 - 🎨 现代化深色主题界面
 - 📊 实时下载进度显示
 - ⚠️ 成功/失败数量统计与失败清单日志
@@ -105,7 +106,7 @@ python build_release.py YYYYMMDDNN
 
 ## 原生 macOS 重构
 
-`native/` 目录包含独立的 SwiftUI 重构工程。原生版已接入真实 `yt-dlp` 下载引擎，并完成独立设置窗口、设置持久化、目录选择、多链接、Pornhub 网页分页、YouTube 单视频/播放列表/频道、X 多媒体帖子、TikTok 公开单视频、实时进度、失败统计、站点独立翻译与最高像素封面、代理和手动 Cookies 认证；现有 Python 客户端保持不变。
+`native/` 目录包含独立的 SwiftUI 重构工程。原生版已接入真实 `yt-dlp` 下载引擎，并完成独立设置窗口、设置持久化、目录选择、多链接、Pornhub 网页分页、YouTube 单视频/播放列表/频道、X 多媒体帖子、TikTok 与抖音公开单视频、实时进度、失败统计、站点独立翻译与最高像素封面、代理和手动 Cookies 认证；现有 Python 客户端保持不变。
 
 ```bash
 cd native
