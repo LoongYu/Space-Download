@@ -67,16 +67,16 @@ final class DownloadTaskCoordinator: ObservableObject {
         appendLog("已创建任务，共 \(request.sourceURLs.count) 个输入链接")
         engine.prepareForExecution()
 
-        task = Task { [weak self] in
-            let summary = await engine.execute(request: request) { [weak self] event in
-                if Thread.isMainThread {
-                    self?.handle(event)
-                } else {
-                    DispatchQueue.main.sync { self?.handle(event) }
+        let coordinator = self
+        task = Task.detached(priority: .userInitiated) { [coordinator, engine, request] in
+            let summary = await engine.execute(request: request) { [coordinator] event in
+                DispatchQueue.main.sync {
+                    coordinator.handle(event)
                 }
             }
-            guard let self else { return }
-            self.finish(summary)
+            await MainActor.run {
+                coordinator.finish(summary)
+            }
         }
     }
 

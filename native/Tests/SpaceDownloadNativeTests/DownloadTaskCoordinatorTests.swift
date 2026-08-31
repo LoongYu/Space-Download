@@ -28,6 +28,21 @@ final class DownloadTaskCoordinatorTests: XCTestCase {
         coordinator.start(request: makeRequest(urls: []))
         XCTAssertEqual(coordinator.status, .idle)
     }
+
+    func testStartActuallyExecutesDownloadEngine() async throws {
+        let executor = ImmediateFailingProcessExecutor()
+        let coordinator = DownloadTaskCoordinator(engine: makeEngine(executor: executor))
+        let url = try XCTUnwrap(URL(string: "https://example.com/video"))
+
+        coordinator.start(request: makeRequest(urls: [url]))
+        for _ in 0..<100 where coordinator.status.isActive {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertGreaterThan(executor.executionCount, 0)
+        XCTAssertEqual(coordinator.status, .completed)
+        XCTAssertTrue(coordinator.logs.contains { $0.contains("yt-dlp:") })
+    }
 }
 
 final class BlockingProcessExecutor: ProcessExecuting {
@@ -56,6 +71,22 @@ final class BlockingProcessExecutor: ProcessExecuting {
         lock.unlock()
         continuation?.resume(returning: ProcessExecutionResult(exitCode: 143, lines: ["cancelled"]))
     }
+}
+
+final class ImmediateFailingProcessExecutor: ProcessExecuting {
+    private let lock = NSLock()
+    private var count = 0
+
+    var executionCount: Int {
+        lock.withLock { count }
+    }
+
+    func run(executable: URL, arguments: [String], onLine: @escaping (String) -> Void) async -> ProcessExecutionResult {
+        lock.withLock { count += 1 }
+        return ProcessExecutionResult(exitCode: 1, lines: ["expected test failure"])
+    }
+
+    func cancel() {}
 }
 
 func makeEngine(executor: ProcessExecuting) -> DownloadEngine {
