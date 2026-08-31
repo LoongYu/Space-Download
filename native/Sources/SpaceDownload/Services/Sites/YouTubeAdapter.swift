@@ -96,6 +96,39 @@ struct YouTubeAdapter: SiteAdapter {
         return URL(string: "https://www.youtube.com/watch?v=\(id)")
     }
 
+    func preferredThumbnail(from metadata: [String: Any]) -> SiteThumbnail? {
+        let metadataHeaders = stringHeaders(from: metadata["http_headers"])
+        let candidates: [(thumbnail: SiteThumbnail, area: Int, preference: Int, index: Int)] =
+            (metadata["thumbnails"] as? [[String: Any]] ?? []).enumerated().compactMap {
+            index, thumbnail -> (thumbnail: SiteThumbnail, area: Int, preference: Int, index: Int)? in
+            guard let value = thumbnail["url"] as? String,
+                  let url = URL(string: value)
+            else { return nil }
+            let width = integerValue(thumbnail["width"])
+            let height = integerValue(thumbnail["height"])
+            let area = (width ?? 0) * (height ?? 0)
+            let preference = integerValue(thumbnail["preference"]) ?? 0
+            let headers = metadataHeaders.merging(
+                stringHeaders(from: thumbnail["http_headers"]),
+                uniquingKeysWith: { _, thumbnailValue in thumbnailValue }
+            )
+            return (
+                SiteThumbnail(url: url, headers: headers, width: width, height: height),
+                area,
+                preference,
+                index
+            )
+        }
+        if let best = candidates.max(by: { lhs, rhs in
+            if lhs.area != rhs.area { return lhs.area < rhs.area }
+            if lhs.preference != rhs.preference { return lhs.preference < rhs.preference }
+            return lhs.index < rhs.index
+        }) {
+            return best.thumbnail
+        }
+        return metadataThumbnail(from: metadata)
+    }
+
     private func channelURL(_ url: URL, scope: YouTubeChannelScope) -> URL {
         guard scope != .all,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -117,6 +150,13 @@ struct YouTubeAdapter: SiteAdapter {
         components.path = "/" + parts.joined(separator: "/")
         return components.url ?? url
     }
+}
+
+private func integerValue(_ value: Any?) -> Int? {
+    if let value = value as? Int { return value }
+    if let value = value as? NSNumber { return value.intValue }
+    if let value = value as? String { return Int(value) }
+    return nil
 }
 
 struct YouTubeJavaScriptRuntime: Equatable {

@@ -103,7 +103,7 @@ python build_release.py YYYYMMDDNN
 
 ## 原生 macOS 重构
 
-`native/` 目录包含独立的 SwiftUI 重构工程。原生版已接入真实 `yt-dlp` 下载引擎，并完成独立设置窗口、设置持久化、目录选择、多链接、Pornhub 网页分页、YouTube 单视频/播放列表/频道、实时进度、失败统计、站点独立翻译与封面、代理和认证；现有 Python 客户端保持不变。
+`native/` 目录包含独立的 SwiftUI 重构工程。原生版已接入真实 `yt-dlp` 下载引擎，并完成独立设置窗口、设置持久化、目录选择、多链接、Pornhub 网页分页、YouTube 单视频/播放列表/频道、实时进度、失败统计、站点独立翻译与最高像素封面、代理和手动 Cookies 认证；现有 Python 客户端保持不变。
 
 ```bash
 cd native

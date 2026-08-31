@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 (2026-08-31)
+
+### YouTube 标题与封面适配
+
+- YouTube 翻译后的标题显式在 yt-dlp `pre_process` 阶段写回 metadata，确保命名模板使用翻译结果
+- YouTube 封面从完整 `thumbnails` 列表中选择像素面积最大的版本，不再固定使用单个 `thumbnail` 字段
+- 合并 metadata 与封面候选自身的 HTTP 请求头，封面专属请求头优先，减少 CDN 拒绝请求
+- YouTube 匿名访问被平台机器人校验拦截时，输出更简洁的中文代理或手动 `cookies.txt` 处理建议
+- 保持默认免 Cookies 且不读取浏览器数据；临时验证的 PO Token provider 无法绕过当前出口的播放器 API 拦截，因此未引入额外运行时依赖
+- 测试扩展至 61 项，并通过真实 YouTube CDN 最高分辨率封面下载测试
+
 ## 0.4.0 (2026-08-31)
 
 ### 独立设置窗口与站点配置隔离

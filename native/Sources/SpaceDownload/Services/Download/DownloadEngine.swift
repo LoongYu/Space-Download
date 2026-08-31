@@ -248,14 +248,16 @@ final class DownloadEngine {
             summary.completed += 1
             onEvent(.itemSucceeded(title: item.title, url: item.url))
             if mediaSettings.embedThumbnail,
-               let thumbnailText = metadata["thumbnail"] as? String,
-               let thumbnailURL = URL(string: thumbnailText),
+               let thumbnail = itemAdapter.preferredThumbnail(from: metadata),
                let videoPath = resultInfo["filepath"] ?? resultInfo["_filename"] {
                 do {
+                    if let width = thumbnail.width, let height = thumbnail.height {
+                        onEvent(.log("封面选择：\(width)×\(height)"))
+                    }
                     let thumbnailPath = try await thumbnailService.download(
-                        from: thumbnailURL,
+                        from: thumbnail.url,
                         beside: URL(fileURLWithPath: videoPath),
-                        headers: metadataHTTPHeaders(metadata)
+                        headers: thumbnail.headers
                     )
                     onEvent(.log("已保存封面图：\(thumbnailPath.lastPathComponent)"))
                 } catch {
@@ -311,15 +313,6 @@ final class DownloadEngine {
     }
 }
 
-private func metadataHTTPHeaders(_ metadata: [String: Any]) -> [String: String] {
-    guard let values = metadata["http_headers"] as? [String: Any] else { return [:] }
-    return values.reduce(into: [:]) { result, entry in
-        if let value = entry.value as? String {
-            result[entry.key] = value
-        }
-    }
-}
-
 private func jsonObject(from lines: [String]) -> [String: Any]? {
     for line in lines.reversed() {
         guard let start = line.firstIndex(of: "{") else { continue }
@@ -334,6 +327,11 @@ private func jsonObject(from lines: [String]) -> [String: Any]? {
 
 private func failureReason(from execution: ProcessExecutionResult) -> String {
     let meaningful = execution.lines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    let combined = meaningful.joined(separator: "\n")
+    if combined.localizedCaseInsensitiveContains("Sign in to confirm you’re not a bot")
+        || combined.localizedCaseInsensitiveContains("Sign in to confirm you're not a bot") {
+        return "YouTube 拒绝了当前网络的匿名访问。请更换可用代理后重试；如视频确实需要登录，只能在 YouTube 站点设置中手动选择 cookies.txt，应用不会读取浏览器数据。"
+    }
     return meaningful.suffix(5).joined(separator: " | ").nilIfEmpty
         ?? "yt-dlp 退出码 \(execution.exitCode)"
 }

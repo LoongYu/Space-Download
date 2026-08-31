@@ -18,7 +18,8 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - YouTube 播放列表序号筛选，以及频道视频、Shorts、直播和全部内容范围筛选
 - Pornhub 与 YouTube 独立的命名、标题翻译、封面和 Cookies 设置
 - YouTube 独立字幕语言、编码偏好和批量请求间隔设置
-- YouTube 公开内容默认无需 Cookies，并隔离外部 yt-dlp 配置和未启用的环境代理
+- YouTube 公开内容优先使用免 Cookies 流程，并隔离外部 yt-dlp 配置和未启用的环境代理
+- YouTube 标题翻译在命名阶段生效，封面从 metadata 候选中选择最高像素版本并继承专属请求头
 - 实时下载进度、速度、ETA、成功/失败数量和失败清单
 - 完整 JSON metadata 日志
 - 5 次下载/分片重试，以及可配置的下载限速和 1–16 分片并发
@@ -37,6 +38,7 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - YouTube 的“播放列表序号”按播放列表中的视频顺序筛选，例如 `1-20,25`。
 - YouTube 频道链接可以选择视频、Shorts、直播或全部内容。
 - YouTube 需要登录、年龄验证或私有内容时，可以单独启用并选择 `cookies.txt`。
+- YouTube 若拒绝当前网络的匿名访问，请先更换可用代理；应用不会自动读取 Chrome 或其他浏览器数据。
 
 ## 构建与测试
 

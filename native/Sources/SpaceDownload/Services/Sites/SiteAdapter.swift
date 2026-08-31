@@ -20,6 +20,13 @@ struct SiteCollectionSource: Equatable {
     let label: String
 }
 
+struct SiteThumbnail: Equatable {
+    let url: URL
+    let headers: [String: String]
+    let width: Int?
+    let height: Int?
+}
+
 protocol SiteAdapter {
     var siteID: SiteID? { get }
     var displayName: String { get }
@@ -31,6 +38,7 @@ protocol SiteAdapter {
     func networkArguments(for phase: YtDlpPhase, request: DownloadRequest) -> [String]
     func downloadArguments(for request: DownloadRequest) -> [String]
     func resolvedEntryURL(from entry: [String: Any]) -> URL?
+    func preferredThumbnail(from metadata: [String: Any]) -> SiteThumbnail?
 }
 
 extension SiteAdapter {
@@ -42,6 +50,10 @@ extension SiteAdapter {
     func networkArguments(for phase: YtDlpPhase, request: DownloadRequest) -> [String] { [] }
     func downloadArguments(for request: DownloadRequest) -> [String] { [] }
 
+    func preferredThumbnail(from metadata: [String: Any]) -> SiteThumbnail? {
+        metadataThumbnail(from: metadata)
+    }
+
     func resolvedEntryURL(from entry: [String: Any]) -> URL? {
         for key in ["webpage_url", "original_url", "url"] {
             if let value = entry[key] as? String,
@@ -51,6 +63,27 @@ extension SiteAdapter {
             }
         }
         return nil
+    }
+}
+
+func metadataThumbnail(from metadata: [String: Any]) -> SiteThumbnail? {
+    guard let value = metadata["thumbnail"] as? String,
+          let url = URL(string: value)
+    else { return nil }
+    return SiteThumbnail(
+        url: url,
+        headers: stringHeaders(from: metadata["http_headers"]),
+        width: nil,
+        height: nil
+    )
+}
+
+func stringHeaders(from value: Any?) -> [String: String] {
+    guard let values = value as? [String: Any] else { return [:] }
+    return values.reduce(into: [:]) { result, entry in
+        if let value = entry.value as? String, !value.isEmpty {
+            result[entry.key] = value
+        }
     }
 }
 

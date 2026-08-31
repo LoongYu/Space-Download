@@ -64,6 +64,43 @@ final class SiteAdapterTests: XCTestCase {
         )
     }
 
+    func testYouTubeSelectsHighestResolutionThumbnailAndMergesHeaders() throws {
+        let metadata: [String: Any] = [
+            "thumbnail": "https://i.ytimg.com/default.jpg",
+            "http_headers": ["Referer": "https://www.youtube.com/", "User-Agent": "metadata-agent"],
+            "thumbnails": [
+                ["url": "https://i.ytimg.com/120.jpg", "width": 120, "height": 90],
+                [
+                    "url": "https://i.ytimg.com/1920.jpg",
+                    "width": 1920,
+                    "height": 1080,
+                    "http_headers": ["User-Agent": "thumbnail-agent"],
+                ],
+                ["url": "https://i.ytimg.com/1280.jpg", "width": 1280, "height": 720],
+            ],
+        ]
+
+        let thumbnail = try XCTUnwrap(YouTubeAdapter().preferredThumbnail(from: metadata))
+
+        XCTAssertEqual(thumbnail.url.absoluteString, "https://i.ytimg.com/1920.jpg")
+        XCTAssertEqual(thumbnail.width, 1920)
+        XCTAssertEqual(thumbnail.height, 1080)
+        XCTAssertEqual(thumbnail.headers["Referer"], "https://www.youtube.com/")
+        XCTAssertEqual(thumbnail.headers["User-Agent"], "thumbnail-agent")
+    }
+
+    func testYouTubeThumbnailFallsBackToMetadataThumbnail() throws {
+        let thumbnail = try XCTUnwrap(YouTubeAdapter().preferredThumbnail(from: [
+            "thumbnail": "https://i.ytimg.com/fallback.jpg",
+            "http_headers": ["Referer": "https://www.youtube.com/"],
+        ]))
+
+        XCTAssertEqual(thumbnail.url.absoluteString, "https://i.ytimg.com/fallback.jpg")
+        XCTAssertNil(thumbnail.width)
+        XCTAssertNil(thumbnail.height)
+        XCTAssertEqual(thumbnail.headers["Referer"], "https://www.youtube.com/")
+    }
+
     func testRegistryKeepsPornhubAndYouTubeSeparate() throws {
         let pornhub = try XCTUnwrap(URL(string: "https://www.pornhub.com/model/example"))
         let youtube = try XCTUnwrap(URL(string: "https://www.youtube.com/@creator"))

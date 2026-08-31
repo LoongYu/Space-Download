@@ -39,6 +39,10 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertTrue(arguments.contains("secret"))
         XCTAssertTrue(arguments.contains("https://www.pornhub.com/"))
         XCTAssertTrue(arguments.contains("新标题"))
+        let replacementIndex = try XCTUnwrap(arguments.firstIndex(of: "--replace-in-metadata"))
+        XCTAssertEqual(arguments[replacementIndex + 1], "pre_process:title")
+        XCTAssertEqual(arguments[replacementIndex + 2], "^.*$")
+        XCTAssertEqual(arguments[replacementIndex + 3], "新标题")
         XCTAssertTrue(arguments.contains("5M"))
         let fragmentsIndex = try XCTUnwrap(arguments.firstIndex(of: "--concurrent-fragments"))
         XCTAssertEqual(arguments[fragmentsIndex + 1], "4")
@@ -74,7 +78,8 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         let arguments = builder.downloadArguments(
             for: DownloadItem(url: url, title: "Video", page: nil, pageIndex: nil),
             request: request,
-            temporaryDirectory: URL(fileURLWithPath: "/tmp/work")
+            temporaryDirectory: URL(fileURLWithPath: "/tmp/work"),
+            translatedTitle: "中文标题"
         )
 
         XCTAssertTrue(arguments.contains(youtubeCookies.path))
@@ -92,6 +97,10 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertFalse(arguments.contains("https://www.pornhub.com/"))
         let outputIndex = try XCTUnwrap(arguments.firstIndex(of: "--output"))
         XCTAssertEqual(arguments[outputIndex + 1], "%(title)s(%(id)s).%(ext)s")
+        let replacementIndex = try XCTUnwrap(arguments.firstIndex(of: "--replace-in-metadata"))
+        XCTAssertEqual(arguments[replacementIndex + 1], "pre_process:title")
+        XCTAssertEqual(arguments[replacementIndex + 2], "^.*$")
+        XCTAssertEqual(arguments[replacementIndex + 3], "中文标题")
     }
 
     func testBuildsYouTubePlaylistItemSelection() throws {

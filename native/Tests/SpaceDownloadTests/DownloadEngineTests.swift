@@ -58,6 +58,28 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertTrue(summary.failures.first?.reason.contains("Video unavailable") == true)
     }
 
+    func testYouTubeBotCheckFailureProvidesSafeActionableMessage() async throws {
+        let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc12345678"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(
+                exitCode: 1,
+                lines: ["ERROR: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies"]
+            ),
+        ])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+
+        let summary = await engine.execute(
+            request: DownloadRequest(sourceURLs: [url], settings: .defaults, credentials: .init(), selectedPages: nil),
+            onEvent: { _ in }
+        )
+
+        let reason = try XCTUnwrap(summary.failures.first?.reason)
+        XCTAssertTrue(reason.contains("YouTube 拒绝了当前网络的匿名访问"))
+        XCTAssertTrue(reason.contains("手动选择 cookies.txt"))
+        XCTAssertFalse(reason.contains("cookies-from-browser"))
+    }
+
     func testPornhubRequestUsesAutomaticCookies() async throws {
         let url = try XCTUnwrap(URL(string: "https://www.pornhub.com/view_video.php?viewkey=abc"))
         let executor = ScriptedProcessExecutor(results: [
@@ -256,6 +278,48 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertEqual(translator.translationCount, 0)
         XCTAssertEqual(thumbnail.downloadCount, 0)
     }
+
+    func testYouTubeDownloadUsesHighestResolutionThumbnail() async throws {
+        let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc12345678"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [
+                #"{"id":"abc12345678","title":"Video","thumbnail":"https://i.ytimg.com/default.jpg","http_headers":{"Referer":"https://www.youtube.com/"},"thumbnails":[{"url":"https://i.ytimg.com/low.jpg","width":320,"height":180},{"url":"https://i.ytimg.com/max.jpg","width":1920,"height":1080,"http_headers":{"User-Agent":"thumbnail-agent"}}]}"#,
+            ]),
+            ProcessExecutionResult(exitCode: 0, lines: [
+                #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/video.mp4"}"#,
+            ]),
+        ])
+        let thumbnail = RecordingThumbnailService()
+        let engine = DownloadEngine(
+            tools: ToolLocations(ytDlp: URL(fileURLWithPath: "/usr/bin/true"), ffmpeg: nil),
+            executor: executor,
+            translator: IdentityTitleTranslator(),
+            thumbnailService: thumbnail,
+            metadataLogger: DisabledMetadataDebugLogger()
+        )
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.sites.youtube.media.translateTitle = false
+        settings.sites.youtube.media.embedThumbnail = true
+        settings.sites.youtube.requestIntervalSeconds = 0
+        var events: [DownloadEngineEvent] = []
+
+        let summary = await engine.execute(
+            request: DownloadRequest(
+                sourceURLs: [url],
+                settings: settings,
+                credentials: .init(),
+                selectedPages: nil
+            ),
+            onEvent: { events.append($0) }
+        )
+
+        XCTAssertEqual(summary.completed, 1)
+        XCTAssertEqual(thumbnail.lastSourceURL?.absoluteString, "https://i.ytimg.com/max.jpg")
+        XCTAssertEqual(thumbnail.lastHeaders?["Referer"], "https://www.youtube.com/")
+        XCTAssertEqual(thumbnail.lastHeaders?["User-Agent"], "thumbnail-agent")
+        XCTAssertTrue(events.contains(.log("封面选择：1920×1080")))
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {
@@ -289,14 +353,17 @@ final class RecordingThumbnailService: ThumbnailDownloading {
     private let lock = NSLock()
     private var count = 0
     private var recordedHeaders: [String: String]?
+    private var recordedSourceURL: URL?
 
     var downloadCount: Int { lock.withLock { count } }
     var lastHeaders: [String: String]? { lock.withLock { recordedHeaders } }
+    var lastSourceURL: URL? { lock.withLock { recordedSourceURL } }
 
     func download(from sourceURL: URL, beside videoURL: URL, headers: [String: String]) async throws -> URL {
         lock.withLock {
             count += 1
             recordedHeaders = headers
+            recordedSourceURL = sourceURL
         }
         return videoURL.deletingPathExtension().appendingPathExtension("jpg")
     }

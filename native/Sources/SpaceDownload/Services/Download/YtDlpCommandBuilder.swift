@@ -63,7 +63,12 @@ struct YtDlpCommandBuilder {
             arguments += ["--ffmpeg-location", ffmpeg.path]
         }
         if let translatedTitle, !translatedTitle.isEmpty, translatedTitle != item.title {
-            arguments += ["--replace-in-metadata", "title", "^.*$", translatedTitle]
+            arguments += [
+                "--replace-in-metadata",
+                "pre_process:title",
+                "^.*$",
+                translatedTitle.replacingOccurrences(of: "\\", with: "\\\\"),
+            ]
         }
         arguments.append(item.url.absoluteString)
         return arguments
