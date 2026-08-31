@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import UniformTypeIdentifiers
 
@@ -12,6 +13,7 @@ final class AppState: ObservableObject {
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         settingsStore: SettingsStore? = nil,
@@ -19,6 +21,12 @@ final class AppState: ObservableObject {
     ) {
         self.settingsStore = settingsStore ?? SettingsStore()
         self.taskCoordinator = taskCoordinator ?? DownloadTaskCoordinator()
+
+        self.taskCoordinator.objectWillChange
+            .sink { [weak self] in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     var parsedLinks: [URL] {

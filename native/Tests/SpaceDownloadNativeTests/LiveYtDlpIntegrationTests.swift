@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCTest
 @testable import SpaceDownloadNative
@@ -66,13 +67,18 @@ final class LiveYtDlpIntegrationTests: XCTestCase {
             translator: IdentityTitleTranslator(),
             thumbnailService: RejectingThumbnailService()
         ))
+        let appState = AppState(
+            settingsStore: SettingsStore(fileURL: outputDirectory.appendingPathComponent("settings.json")),
+            taskCoordinator: coordinator
+        )
+        appState.settingsStore.settings = settings
+        appState.linkText = url.absoluteString
+        var frontendRefreshCount = 0
+        let cancellable = appState.objectWillChange.sink {
+            frontendRefreshCount += 1
+        }
 
-        coordinator.start(request: DownloadRequest(
-            sourceURLs: [url],
-            settings: settings,
-            credentials: .init(),
-            selectedPages: nil
-        ))
+        appState.startDownload()
 
         for _ in 0..<1_200 where coordinator.progress == 0 && coordinator.status.isActive {
             try await Task.sleep(for: .milliseconds(50))
@@ -89,5 +95,7 @@ final class LiveYtDlpIntegrationTests: XCTestCase {
         XCTAssertTrue(coordinator.status == .idle || coordinator.status == .completed)
         XCTAssertTrue(coordinator.logs.contains { $0.contains("JSON metadata") })
         XCTAssertTrue(coordinator.logs.contains { $0.contains("[下载进度]") })
+        XCTAssertGreaterThan(frontendRefreshCount, 5)
+        withExtendedLifetime(cancellable) {}
     }
 }

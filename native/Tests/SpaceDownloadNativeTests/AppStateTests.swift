@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCTest
 @testable import SpaceDownloadNative
@@ -42,6 +43,41 @@ final class AppStateTests: XCTestCase {
 
         XCTAssertEqual(appState.validationMessage, "已启用 Cookies，请先选择 cookies.txt")
         XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
+    func testDownloadProgressAndLogsTriggerFrontendRefresh() async throws {
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"abc","title":"Video"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [
+                "[download] Destination: /tmp/video.mp4",
+                "SPACEDOWNLOAD_PROGRESS:50%|1MiB/s|00:05",
+                #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/video.mp4"}"#,
+            ]),
+        ])
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("settings.json")
+        let appState = AppState(
+            settingsStore: SettingsStore(fileURL: fileURL),
+            taskCoordinator: DownloadTaskCoordinator(engine: makeEngine(executor: executor))
+        )
+        appState.settingsStore.settings.translateTitle = false
+        appState.settingsStore.settings.embedThumbnail = false
+        appState.linkText = "https://example.com/video"
+        var refreshCount = 0
+        let cancellable = appState.objectWillChange.sink {
+            refreshCount += 1
+        }
+
+        appState.startDownload()
+        for _ in 0..<100 where appState.taskCoordinator.status.isActive {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertGreaterThan(refreshCount, 5)
+        XCTAssertEqual(appState.taskCoordinator.progress, 1)
+        XCTAssertTrue(appState.taskCoordinator.logs.contains { $0.contains("[下载进度] 50.0%") })
+        withExtendedLifetime(cancellable) {}
     }
 
     private func makeAppState() -> AppState {
