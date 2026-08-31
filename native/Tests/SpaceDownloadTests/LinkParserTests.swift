@@ -3,6 +3,15 @@ import XCTest
 @testable import SpaceDownload
 
 final class LinkParserTests: XCTestCase {
+    func testParsesTelegramPublicMessageShareURLs() {
+        let result = LinkParser.parse("https://telegram.me/europa_press/613?single\nhttps://t.me/TelegramTips/518")
+        XCTAssertTrue(result.invalidEntries.isEmpty)
+        XCTAssertEqual(result.validURLs.map(\.absoluteString), [
+            "https://telegram.me/europa_press/613?single",
+            "https://t.me/TelegramTips/518",
+        ])
+    }
+
     func testParsesMultipleLinksAndRemovesDuplicates() {
         let result = LinkParser.parse("""
         https://example.com/video/1

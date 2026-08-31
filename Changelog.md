@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0 (2026-08-31)
+
+### Telegram 公开单消息与多视频适配
+
+- 新增独立 Telegram `SiteID`、adapter、设置与图标；仅支持匿名可访问的公开单条消息，不提供无实际 extractor 行为支撑的 Cookie 开关
+- 支持 `t.me/频道/消息ID`、`telegram.me` 等价入口，并在执行前规范到 `https://t.me`、清理 `?single` 等查询参数及 fragment；私有群、受限频道和整频道明确拒绝
+- 复用泛化多资源任务模型：公开消息中的每个视频成为独立任务；图片可识别但未实测前明确跳过、不宣称下载支持
+- schema 从 v6 升至 v7，读取旧配置时仅补齐 Telegram 默认项，保留 Pornhub、YouTube、X、TikTok、抖音与 Instagram 全部配置
+- 匿名真实 metadata 提供日期、标题、ID、频道及封面而不提供 `uploader`，据此采用日期-标题(ID)、关闭翻译并保存封面
+- 使用内置 yt-dlp 2026.08.19 完成公开消息匿名 metadata、真实 MP4 下载与 ffprobe（H.264 848×480 + AAC，61.114921 秒），并验证封面 JPEG；公开双视频旧样例当前返回空结果，真实错误已记录
+- 补齐 URL、adapter、多资源、命令、设置迁移、AppState/UI 测试，生成并目视检查 Telegram 设置页 PNG；Release app 通过严格签名校验
+
 ## 0.8.0 (2026-08-31)
 
 ### Instagram 公开帖子与多视频适配

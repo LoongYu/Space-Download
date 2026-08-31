@@ -231,6 +231,51 @@ final class SiteAdapterTests: XCTestCase {
         XCTAssertEqual(thumbnail.headers["User-Agent"], "instagram-thumbnail")
     }
 
+    func testTelegramMatchesOnlyPublicMessageLinksAndCleansShareParameters() throws {
+        let adapter = TelegramAdapter()
+        for value in [
+            "https://t.me/vorposte/29342?single#fragment",
+            "https://telegram.me/europa_press/613?utm_source=share",
+            "http://www.t.me/public_channel/42/",
+        ] {
+            let url = try XCTUnwrap(URL(string: value))
+            XCTAssertTrue(adapter.matches(url))
+            let expectedParts = url.pathComponents.filter { $0 != "/" }
+            XCTAssertEqual(adapter.canonicalURL(url).absoluteString, "https://t.me/\(expectedParts[0])/\(expectedParts[1])")
+            XCTAssertEqual(SiteRegistry.adapter(for: url).siteID, .telegram)
+            XCTAssertEqual(adapter.classify(url), .singleVideo)
+        }
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://t.me/public_channel"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://t.me/+privateInvite/42"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://t.me/c/123456"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://t.me/joinchat/123456"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://t.me/public_channel/not-a-message"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://evil.example/public_channel/42"))))
+    }
+
+    func testTelegramExpandsVideosAndRecognizesImagesWithoutDownloadingThem() throws {
+        let url = try XCTUnwrap(URL(string: "https://t.me/public_channel/42?single"))
+        let resources = TelegramAdapter().mediaResources(from: ["entries": [
+            ["id": "42", "title": "First video", "ext": "mp4"],
+            ["id": "43", "title": "Photo", "ext": "jpg"],
+            ["id": "44", "title": "Second video", "ext": "mp4"],
+        ]], sourceURL: url)
+        XCTAssertEqual(resources.map(\.stableID), ["public_channel-42", "public_channel-43", "public_channel-44"])
+        XCTAssertEqual(resources.map(\.kind), [.video, .image, .video])
+        XCTAssertEqual(resources.map(\.selector), [1, 2, 3])
+        XCTAssertEqual(resources.map(\.isDownloadSupported), [true, false, true])
+    }
+
+    func testTelegramSingleVideoUsesRootMetadataWithoutSelector() throws {
+        let url = try XCTUnwrap(URL(string: "https://t.me/europa_press/613"))
+        let resource = try XCTUnwrap(TelegramAdapter().mediaResources(from: [
+            "id": "613", "title": "Public video", "ext": "mp4",
+        ], sourceURL: url).first)
+        XCTAssertEqual(resource.stableID, "europa_press-613")
+        XCTAssertEqual(resource.kind, .video)
+        XCTAssertNil(resource.selector)
+    }
+
     func testYouTubeJavaScriptRuntimeLocatorFindsNodeInConfiguredDirectory() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

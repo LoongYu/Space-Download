@@ -74,6 +74,7 @@ final class AppState: ObservableObject {
         case .tiktok: tiktokCookiesFileURL = panel.url
         case .douyin: douyinCookiesFileURL = panel.url
         case .instagram: instagramCookiesFileURL = panel.url
+        case .telegram: return
         }
     }
 
@@ -85,6 +86,14 @@ final class AppState: ObservableObject {
         }
         guard !result.validURLs.isEmpty else {
             validationMessage = "请至少输入一个视频链接"
+            return
+        }
+        if result.validURLs.contains(where: { url in
+            guard let host = url.host?.lowercased() else { return false }
+            let isTelegramHost = ["t.me", "www.t.me", "telegram.me", "www.telegram.me"].contains(host)
+            return isTelegramHost && SiteRegistry.adapter(for: url).siteID != .telegram
+        }) {
+            validationMessage = "Telegram 当前仅支持公开频道的单条消息链接（t.me/频道/消息ID）；私有群、受限频道和整频道不在本阶段范围"
             return
         }
         let detectedSites = SiteRegistry.detectedSites(in: result.validURLs)

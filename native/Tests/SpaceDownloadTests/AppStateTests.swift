@@ -5,6 +5,28 @@ import XCTest
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testTelegramPublicMessageNeedsNoCookieAndIsDetectedIndependently() {
+        let appState = makeAppState()
+        appState.linkText = "https://telegram.me/europa_press/613?single"
+
+        XCTAssertEqual(appState.detectedSiteLabel, "Telegram")
+        appState.startDownload()
+
+        XCTAssertNil(appState.validationMessage)
+        XCTAssertEqual(appState.taskCoordinator.status, .running)
+        appState.stopDownload()
+    }
+
+    func testTelegramPrivateAndChannelURLsAreRejectedBeforeGenericDownload() {
+        for link in ["https://t.me/+invite", "https://t.me/c/123/456", "https://t.me/public_channel"] {
+            let appState = makeAppState()
+            appState.linkText = link
+            appState.startDownload()
+            XCTAssertEqual(appState.validationMessage, "Telegram 当前仅支持公开频道的单条消息链接（t.me/频道/消息ID）；私有群、受限频道和整频道不在本阶段范围")
+            XCTAssertEqual(appState.taskCoordinator.status, .idle)
+        }
+    }
+
     func testInstagramRequiresItsOwnManualCookiesAndDoesNotReuseOtherSites() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

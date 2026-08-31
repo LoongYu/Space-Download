@@ -16,6 +16,7 @@ struct DownloadCredentials: Equatable {
         case .tiktok: tiktokCookiesFileURL
         case .douyin: douyinCookiesFileURL
         case .instagram: instagramCookiesFileURL
+        case .telegram: nil
         case .pornhub, .none: cookiesFileURL
         }
     }

@@ -221,4 +221,37 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertFalse(arguments.contains("/tmp/x.txt"))
         XCTAssertFalse(arguments.contains("--cookies-from-browser"))
     }
+
+    func testBuildsTelegramSelectorWithCanonicalURLAndNoCookies() throws {
+        let url = try XCTUnwrap(URL(string: "https://telegram.me/vorposte/29342?single&utm_source=share"))
+        let metadata = try JSONSerialization.data(withJSONObject: ["id": "29343", "ext": "mp4"])
+        let item = DownloadItem(url: url, title: "Video", page: nil, pageIndex: 2, resource: MediaResourceTask(
+            stableID: "vorposte-29343", kind: .video, selector: 2, metadataJSON: metadata
+        ))
+        let request = DownloadRequest(sourceURLs: [url], settings: .defaults, credentials: DownloadCredentials(
+            cookiesFileURL: URL(fileURLWithPath: "/tmp/pornhub.txt"),
+            youtubeCookiesFileURL: URL(fileURLWithPath: "/tmp/youtube.txt"),
+            xCookiesFileURL: URL(fileURLWithPath: "/tmp/x.txt"),
+            instagramCookiesFileURL: URL(fileURLWithPath: "/tmp/instagram.txt")
+        ), selectedPages: nil)
+        let builder = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"), ffmpeg: nil
+        ))
+
+        let discovery = builder.resourceDiscoveryArguments(for: url, request: request)
+        XCTAssertEqual(discovery.last, "https://t.me/vorposte/29342")
+        XCTAssertTrue(discovery.contains("--yes-playlist"))
+        XCTAssertFalse(discovery.contains("--cookies"))
+
+        let arguments = builder.downloadArguments(
+            for: item,
+            request: request,
+            temporaryDirectory: URL(fileURLWithPath: "/tmp/work")
+        )
+        XCTAssertEqual(arguments.last, "https://t.me/vorposte/29342")
+        XCTAssertEqual(arguments[try XCTUnwrap(arguments.firstIndex(of: "--playlist-items")) + 1], "2")
+        XCTAssertFalse(arguments.contains("--cookies"))
+        let output = try XCTUnwrap(arguments.firstIndex(of: "--output"))
+        XCTAssertEqual(arguments[output + 1], "%(upload_date)s-%(title)s(%(id)s).%(ext)s")
+    }
 }

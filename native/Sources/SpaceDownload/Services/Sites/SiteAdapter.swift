@@ -101,6 +101,7 @@ enum SiteRegistry {
         TikTokAdapter(),
         DouyinAdapter(),
         InstagramAdapter(),
+        TelegramAdapter(),
     ]
     private static let genericAdapter = GenericSiteAdapter()
 

@@ -381,6 +381,33 @@ final class DownloadEngineTests: XCTestCase {
             return nil
         }.contains { $0.contains("[下载进度]") })
     }
+
+    func testTelegramMessageExpandsEachVideoAndSkipsRecognizedImage() async throws {
+        let url = try XCTUnwrap(URL(string: "https://telegram.me/channel_name/42?single"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"_type":"playlist","entries":[{"id":"42","title":"first","ext":"mp4","upload_date":"20260831"},{"id":"43","title":"photo","ext":"jpg"},{"id":"44","title":"third","ext":"mp4","upload_date":"20260831"}]}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/first.mp4"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/third.mp4"}"#]),
+        ])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.sites.telegram.media.embedThumbnail = false
+        var events: [DownloadEngineEvent] = []
+
+        let summary = await engine.execute(request: DownloadRequest(
+            sourceURLs: [url], settings: settings, credentials: .init(), selectedPages: nil
+        )) { events.append($0) }
+
+        XCTAssertEqual(summary.completed, 2)
+        XCTAssertEqual(summary.failures.count, 1)
+        XCTAssertTrue(summary.failures[0].reason.contains("尚未验证 Telegram 图片下载"))
+        XCTAssertTrue(events.contains(.prepared(total: 3)))
+        XCTAssertEqual(executor.recordedArguments.count, 3)
+        XCTAssertEqual(executor.recordedArguments[0].last, "https://t.me/channel_name/42")
+        XCTAssertEqual(executor.recordedArguments[1][try XCTUnwrap(executor.recordedArguments[1].firstIndex(of: "--playlist-items")) + 1], "1")
+        XCTAssertEqual(executor.recordedArguments[2][try XCTUnwrap(executor.recordedArguments[2].firstIndex(of: "--playlist-items")) + 1], "3")
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {

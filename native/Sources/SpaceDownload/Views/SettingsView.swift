@@ -415,6 +415,18 @@ private struct SiteSettingsPage: View {
                     .font(.caption)
                     .foregroundStyle(AppTheme.subdued)
             }
+        case .telegram:
+            SettingsCard(title: "Telegram 公开消息") {
+                Text("仅支持公开频道中的单条消息链接（t.me/频道/消息ID 与 telegram.me 等价链接）。单视频及多视频消息会拆分为独立下载任务。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SettingsDivider()
+                Text("仅支持匿名可访问的公开内容，不使用 cookies.txt。私有群、受限频道和整频道抓取不在本阶段范围；图片可识别，但尚未实测，因此不会下载。分享参数会在执行前安全清理。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -484,6 +496,7 @@ private struct SiteSettingsPage: View {
         case .tiktok: update(&settingsStore.settings.sites.tiktok.media)
         case .douyin: update(&settingsStore.settings.sites.douyin.media)
         case .instagram: update(&settingsStore.settings.sites.instagram.media)
+        case .telegram: update(&settingsStore.settings.sites.telegram.media)
         }
     }
 }
@@ -507,7 +520,7 @@ struct SiteIconView: View {
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\([.x, .tiktok, .douyin, .instagram].contains(siteID) ? "svg" : "png")")
+            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\([.x, .tiktok, .douyin, .instagram, .telegram].contains(siteID) ? "svg" : "png")")
         guard let image = NSImage(contentsOf: bundledURL ?? sourceURL) else {
             return NSImage(systemSymbolName: "globe", accessibilityDescription: siteID.displayName)
                 ?? NSImage()
