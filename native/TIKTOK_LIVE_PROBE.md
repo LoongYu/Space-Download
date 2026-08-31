@@ -8,11 +8,13 @@
 - 未提供 Cookies，也未读取 Chrome 或其他浏览器数据
 - 测试链接：`https://www.tiktok.com/@scout2015/video/6718335390845095173`
 - 链接来自 TikTok 官方 Embed Player 文档中的公开示例
-- yt-dlp：2026.02.21
+- yt-dlp：仓库 `native/.tools/yt-dlp`，版本 2026.08.19
+- SHA-256：`0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202`
+- 该文件与 `dist/SpaceDownload.app/Contents/Resources/yt-dlp` 的 SHA-256 完全一致
 
 ## 匿名 metadata
 
-`--ignore-config --no-playlist --skip-download --dump-single-json` 退出码为 0。关键字段：
+使用仓库工具执行 `--ignore-config --no-playlist --skip-download --dump-single-json`，退出码为 0。关键字段：
 
 - `id`: `6718335390845095173`
 - `uploader`: `scout2015`
@@ -27,14 +29,14 @@
 
 ## 受控真实下载与 ffprobe
 
-在 `/tmp/spacedownload-tiktok-probe.XXXXXX` 临时目录完成公开帖完整下载，yt-dlp 退出码为 0，文件大小 2,004,627 字节。ffprobe 验证：
+使用同一仓库工具在 `/tmp/spacedownload-tiktok-bundled-probe.XXXXXX` 临时目录完成公开帖完整下载，yt-dlp 退出码为 0，文件大小 2,004,627 字节。ffprobe 验证：
 
 - 容器：MP4
 - 时长：10.495011 秒
 - 视频：HEVC，720×1280
 - 音频：AAC
 
-yt-dlp 同时给出两项真实警告：本机 2026.02.21 版本超过 90 天，以及 TikTok extractor 尝试 impersonation 但本机没有可用 target；两项均未阻止本次下载。验证完成后临时目录已清理。
+仓库内 2026.08.19 二进制的本次 metadata 与下载过程均未输出警告。验证完成后临时目录已清理。
 
 ## 结论
 
