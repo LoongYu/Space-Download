@@ -370,6 +370,21 @@ private struct SiteSettingsPage: View {
                     .font(.caption)
                     .foregroundStyle(AppTheme.subdued)
             }
+        case .tiktok:
+            SettingsCard(title: "TikTok 单视频") {
+                Text("支持公开的 @用户/video/ID 链接，以及由 yt-dlp 安全解析重定向的 vm.tiktok.com / vt.tiktok.com 短链。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                cookieSettings(
+                    enabled: $settingsStore.settings.sites.tiktok.useCookies,
+                    fileURL: appState.tiktokCookiesFileURL,
+                    siteID: .tiktok
+                )
+                Text("公开内容通常无需 Cookies；应用只使用你手动选择的 cookies.txt，不读取 Chrome 或其他浏览器数据。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+            }
         }
     }
 
@@ -436,6 +451,7 @@ private struct SiteSettingsPage: View {
         case .pornhub: update(&settingsStore.settings.sites.pornhub.media)
         case .youtube: update(&settingsStore.settings.sites.youtube.media)
         case .x: update(&settingsStore.settings.sites.x.media)
+        case .tiktok: update(&settingsStore.settings.sites.tiktok.media)
         }
     }
 }
@@ -459,7 +475,7 @@ struct SiteIconView: View {
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\(siteID == .x ? "svg" : "png")")
+            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\([.x, .tiktok].contains(siteID) ? "svg" : "png")")
         guard let image = NSImage(contentsOf: bundledURL ?? sourceURL) else {
             return NSImage(systemSymbolName: "globe", accessibilityDescription: siteID.displayName)
                 ?? NSImage()

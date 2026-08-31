@@ -78,6 +78,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
     case pornhub
     case youtube
     case x
+    case tiktok
 
     var id: String { rawValue }
 
@@ -86,6 +87,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
         case .pornhub: "Pornhub"
         case .youtube: "YouTube"
         case .x: "X"
+        case .tiktok: "TikTok"
         }
     }
 
@@ -97,6 +99,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
     case pornhub
     case youtube
     case x
+    case tiktok
 
     var id: String { rawValue }
 
@@ -106,6 +109,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .pornhub: "Pornhub"
         case .youtube: "YouTube"
         case .x: "X"
+        case .tiktok: "TikTok"
         }
     }
 
@@ -115,6 +119,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .pornhub: .pornhub
         case .youtube: .youtube
         case .x: .x
+        case .tiktok: .tiktok
         }
     }
 }
@@ -198,17 +203,24 @@ struct XSiteSettings: Codable, Equatable {
     var useCookies: Bool
 }
 
+struct TikTokSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
+    var useCookies: Bool
+}
+
 struct PerSiteDownloadSettings: Codable, Equatable {
     var pornhub: PornhubSiteSettings
     var youtube: YouTubeSiteSettings
     var x: XSiteSettings
+    var tiktok: TikTokSiteSettings
 
-    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x }
+    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x, tiktok }
 
-    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings) {
+    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings, tiktok: TikTokSiteSettings) {
         self.pornhub = pornhub
         self.youtube = youtube
         self.x = x
+        self.tiktok = tiktok
     }
 
     init(from decoder: Decoder) throws {
@@ -217,6 +229,8 @@ struct PerSiteDownloadSettings: Codable, Equatable {
         youtube = try values.decode(YouTubeSiteSettings.self, forKey: .youtube)
         x = try values.decodeIfPresent(XSiteSettings.self, forKey: .x)
             ?? XSiteSettings(media: .defaults, useCookies: false)
+        tiktok = try values.decodeIfPresent(TikTokSiteSettings.self, forKey: .tiktok)
+            ?? TikTokSiteSettings(media: .tiktokDefaults, useCookies: false)
     }
 }
 
@@ -225,6 +239,7 @@ extension DownloadSettings {
         switch siteID {
         case .youtube: sites.youtube.media
         case .x: sites.x.media
+        case .tiktok: sites.tiktok.media
         case .pornhub, .none: sites.pornhub.media
         }
     }
@@ -267,7 +282,8 @@ struct DownloadSettings: Codable, Equatable {
                     requestIntervalSeconds: 5,
                     useCookies: false
                 ),
-                x: XSiteSettings(media: .defaults, useCookies: false)
+                x: XSiteSettings(media: .defaults, useCookies: false),
+                tiktok: TikTokSiteSettings(media: .tiktokDefaults, useCookies: false)
             )
         )
     }
@@ -352,7 +368,8 @@ struct DownloadSettings: Codable, Equatable {
                         requestIntervalSeconds: oldSites?.youtube.requestIntervalSeconds ?? defaults.sites.youtube.requestIntervalSeconds,
                         useCookies: oldSites?.youtube.useCookies ?? defaults.sites.youtube.useCookies
                     ),
-                    x: defaults.sites.x
+                    x: defaults.sites.x,
+                    tiktok: defaults.sites.tiktok
                 )
             }
             return
@@ -392,6 +409,14 @@ extension SiteMediaSettings {
         filenameTemplate: .uploaderDateTitle,
         customTemplate: "%(title)s(%(id)s)",
         translateTitle: true,
+        embedThumbnail: true
+    )
+
+    // Verified against TikTok metadata: uploader, upload_date, title and id are populated.
+    static let tiktokDefaults = SiteMediaSettings(
+        filenameTemplate: .uploaderDateTitle,
+        customTemplate: "%(uploader)s/%(upload_date)s-%(title)s(%(id)s)",
+        translateTitle: false,
         embedThumbnail: true
     )
 }

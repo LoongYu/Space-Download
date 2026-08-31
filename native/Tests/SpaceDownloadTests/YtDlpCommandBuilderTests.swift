@@ -146,4 +146,30 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertFalse(arguments.contains("/tmp/youtube.txt"))
         XCTAssertFalse(arguments.contains("--cookies-from-browser"))
     }
+
+    func testBuildsTikTokSingleVideoCommandWithIndependentSettingsAndCookies() throws {
+        var settings = DownloadSettings.defaults
+        settings.sites.tiktok.media.filenameTemplate = .uploaderDateTitle
+        let url = try XCTUnwrap(URL(string: "https://www.tiktok.com/@scout2015/video/6718335390845095173"))
+        let cookies = URL(fileURLWithPath: "/tmp/tiktok.txt")
+        let request = DownloadRequest(sourceURLs: [url], settings: settings, credentials: DownloadCredentials(
+            cookiesFileURL: URL(fileURLWithPath: "/tmp/pornhub.txt"),
+            youtubeCookiesFileURL: URL(fileURLWithPath: "/tmp/youtube.txt"),
+            xCookiesFileURL: URL(fileURLWithPath: "/tmp/x.txt"),
+            tiktokCookiesFileURL: cookies
+        ), selectedPages: nil)
+        let arguments = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"), ffmpeg: nil
+        )).downloadArguments(for: DownloadItem(url: url, title: "post", page: nil, pageIndex: nil),
+                             request: request, temporaryDirectory: URL(fileURLWithPath: "/tmp/work"))
+
+        XCTAssertTrue(arguments.contains("--no-playlist"))
+        XCTAssertTrue(arguments.contains(cookies.path))
+        XCTAssertFalse(arguments.contains("/tmp/pornhub.txt"))
+        XCTAssertFalse(arguments.contains("/tmp/youtube.txt"))
+        XCTAssertFalse(arguments.contains("/tmp/x.txt"))
+        XCTAssertFalse(arguments.contains("--cookies-from-browser"))
+        let output = try XCTUnwrap(arguments.firstIndex(of: "--output"))
+        XCTAssertEqual(arguments[output + 1], "%(uploader)s/%(upload_date)s-%(title)s(%(id)s).%(ext)s")
+    }
 }

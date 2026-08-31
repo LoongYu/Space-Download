@@ -129,6 +129,32 @@ final class SiteAdapterTests: XCTestCase {
         XCTAssertEqual(resources.map(\.isDownloadSupported), [true, true, false])
     }
 
+    func testTikTokMatchesPublicVideoAndSafeShortLinksOnly() throws {
+        let adapter = TikTokAdapter()
+        XCTAssertTrue(adapter.matches(try XCTUnwrap(URL(string: "https://www.tiktok.com/@scout2015/video/6718335390845095173"))))
+        XCTAssertTrue(adapter.matches(try XCTUnwrap(URL(string: "https://vm.tiktok.com/ZMexample/"))))
+        XCTAssertTrue(adapter.matches(try XCTUnwrap(URL(string: "https://vt.tiktok.com/ZSexample/"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://www.tiktok.com/@scout2015"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://evil.example/@u/video/123"))))
+        XCTAssertEqual(adapter.classify(try XCTUnwrap(URL(string: "https://vm.tiktok.com/ZMexample/"))), .singleVideo)
+    }
+
+    func testTikTokSelectsLargestMetadataThumbnailAndHeaders() throws {
+        let thumbnail = try XCTUnwrap(TikTokAdapter().preferredThumbnail(from: [
+            "http_headers": ["Referer": "https://www.tiktok.com/"],
+            "thumbnails": [
+                ["url": "https://example.com/small.jpeg", "width": 360, "height": 640],
+                ["url": "https://example.com/large.jpeg", "width": 1080, "height": 1920,
+                 "http_headers": ["User-Agent": "thumbnail-agent"]],
+            ],
+        ]))
+        XCTAssertEqual(thumbnail.url.absoluteString, "https://example.com/large.jpeg")
+        XCTAssertEqual(thumbnail.width, 1080)
+        XCTAssertEqual(thumbnail.height, 1920)
+        XCTAssertEqual(thumbnail.headers["Referer"], "https://www.tiktok.com/")
+        XCTAssertEqual(thumbnail.headers["User-Agent"], "thumbnail-agent")
+    }
+
     func testYouTubeJavaScriptRuntimeLocatorFindsNodeInConfiguredDirectory() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

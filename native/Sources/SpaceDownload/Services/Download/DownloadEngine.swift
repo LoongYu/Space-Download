@@ -365,7 +365,8 @@ final class DownloadEngine {
                     password: request.credentials.password,
                     cookiesFileURL: cookieURL,
                     youtubeCookiesFileURL: request.credentials.youtubeCookiesFileURL,
-                    xCookiesFileURL: request.credentials.xCookiesFileURL
+                    xCookiesFileURL: request.credentials.xCookiesFileURL,
+                    tiktokCookiesFileURL: request.credentials.tiktokCookiesFileURL
                 ),
                 selectedPages: request.selectedPages,
                 youtubePlaylistItems: request.youtubePlaylistItems

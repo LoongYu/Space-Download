@@ -5,6 +5,16 @@ import XCTest
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testTikTokRequiresOnlyItsOwnManuallySelectedCookiesFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let appState = AppState(settingsStore: SettingsStore(fileURL: directory.appendingPathComponent("settings.json")))
+        appState.linkText = "https://www.tiktok.com/@scout2015/video/6718335390845095173"
+        appState.settingsStore.settings.sites.tiktok.useCookies = true
+        appState.xCookiesFileURL = URL(fileURLWithPath: "/tmp/x.txt")
+        appState.startDownload()
+        XCTAssertEqual(appState.validationMessage, "TikTok 已启用 Cookies，请先选择 cookies.txt")
+    }
     func testStartRejectsEmptyInput() {
         let appState = makeAppState()
         appState.startDownload()

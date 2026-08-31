@@ -4,6 +4,30 @@ import XCTest
 
 @MainActor
 final class SettingsStoreTests: XCTestCase {
+    func testSchemaFourSettingsMigrateTikTokDefaultsWithoutChangingExistingSites() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("settings.json")
+        var existing = DownloadSettings.defaults
+        existing.sites.pornhub.media.translateTitle = false
+        existing.sites.youtube.requestIntervalSeconds = 9
+        existing.sites.x.useCookies = true
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(existing)) as! [String: Any]
+        var sites = object["sites"] as! [String: Any]
+        sites.removeValue(forKey: "tiktok")
+        var legacy = object
+        legacy["sites"] = sites
+        try JSONSerialization.data(withJSONObject: legacy).write(to: file)
+
+        let migrated = SettingsStore(fileURL: file).settings
+        XCTAssertEqual(migrated.schemaVersion, 4)
+        XCTAssertFalse(migrated.sites.pornhub.media.translateTitle)
+        XCTAssertEqual(migrated.sites.youtube.requestIntervalSeconds, 9)
+        XCTAssertTrue(migrated.sites.x.useCookies)
+        XCTAssertEqual(migrated.sites.tiktok.media, .tiktokDefaults)
+        XCTAssertFalse(migrated.sites.tiktok.useCookies)
+    }
     func testLoadsExistingPythonSettingsAndPersistsChanges() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

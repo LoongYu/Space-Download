@@ -5,11 +5,13 @@ struct DownloadCredentials: Equatable {
     var cookiesFileURL: URL?
     var youtubeCookiesFileURL: URL?
     var xCookiesFileURL: URL?
+    var tiktokCookiesFileURL: URL?
 
     func cookiesFileURL(for siteID: SiteID?) -> URL? {
         switch siteID {
         case .youtube: youtubeCookiesFileURL
         case .x: xCookiesFileURL
+        case .tiktok: tiktokCookiesFileURL
         case .pornhub, .none: cookiesFileURL
         }
     }

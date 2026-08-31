@@ -23,6 +23,8 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - 可复用的社交帖子多资源任务模型；首个适配站点为 X（`x.com` / `twitter.com`）单条 status
 - X 支持单视频、animated GIF 以及一个帖子中的多个视频资源，逐项进度、失败统计和重复媒体 ID 跳过继续
 - X 使用独立设置与可选手动 `cookies.txt`，不读取浏览器 Cookie；图片仅预留资源类型，当前未验证且不下载
+- TikTok 支持公开 `www.tiktok.com/@user/video/ID` 单视频，以及交由 yt-dlp 解析重定向的 `vm.tiktok.com` / `vt.tiktok.com` 短链
+- TikTok 使用独立命名、标题翻译、最高像素封面和可选手动 `cookies.txt`；不读取 Chrome 或其他浏览器数据
 - 实时下载进度、速度、ETA、成功/失败数量和失败清单
 - 完整 JSON metadata 日志
 - 5 次下载/分片重试，以及可配置的下载限速和 1–16 分片并发
@@ -43,6 +45,7 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - YouTube 需要登录、年龄验证或私有内容时，可以单独启用并选择 `cookies.txt`。
 - YouTube 若拒绝当前网络的匿名访问，请先更换可用代理；应用不会自动读取 Chrome 或其他浏览器数据。
 - X 仅接受单条 status 链接。公开帖子通常无需 Cookies；受限帖子可在 X 设置中手动选择 `cookies.txt`。
+- TikTok 仅适配公开单视频，不包含抖音、Instagram 或 Telegram；受限内容只能手动选择 TikTok `cookies.txt`。
 
 ## 构建与测试
 

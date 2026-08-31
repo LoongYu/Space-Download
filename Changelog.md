@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 (2026-08-31)
+
+### TikTok 公开单视频适配
+
+- 在现有 `SiteAdapter` 与通用单视频任务管线中新增 TikTok，不改变 Pornhub、YouTube、X 的站点专属行为
+- 支持 `www.tiktok.com/@user/video/ID` 以及交由 yt-dlp 解析重定向的 `vm.tiktok.com` / `vt.tiktok.com` 安全短链入口
+- 新增 TikTok 独立设置和图标；基于真实 metadata 采用作者/日期-标题(ID) 默认命名、默认关闭标题翻译并保存最高像素封面
+- TikTok Cookies 仅支持用户手动选择 `cookies.txt`，不读取 Chrome 或任何浏览器认证数据
+- schema 保持 v4，读取既有 v4 设置时自动补齐 TikTok 默认项，并保留 Pornhub、YouTube、X 配置
+- 使用公开测试帖完成匿名 metadata、完整 10 秒下载和 ffprobe 验证；视频为 720×1280 HEVC、AAC 音频，详见 `native/TIKTOK_LIVE_PROBE.md`
+- 测试扩展至 73 项、0 失败；新增 TikTok 设置页 PNG 渲染截图
+- 未实现抖音、Instagram 或 Telegram
+
 ## 0.5.0 (2026-08-31)
 
 ### X 多资源帖子适配

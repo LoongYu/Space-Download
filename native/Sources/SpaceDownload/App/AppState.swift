@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     @Published var cookiesFileURL: URL?
     @Published var youtubeCookiesFileURL: URL?
     @Published var xCookiesFileURL: URL?
+    @Published var tiktokCookiesFileURL: URL?
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
@@ -68,6 +69,7 @@ final class AppState: ObservableObject {
         case .pornhub: cookiesFileURL = panel.url
         case .youtube: youtubeCookiesFileURL = panel.url
         case .x: xCookiesFileURL = panel.url
+        case .tiktok: tiktokCookiesFileURL = panel.url
         }
     }
 
@@ -98,6 +100,12 @@ final class AppState: ObservableObject {
            settingsStore.settings.sites.x.useCookies,
            xCookiesFileURL == nil {
             validationMessage = "X 已启用 Cookies，请先选择 cookies.txt"
+            return
+        }
+        if detectedSites.contains(.tiktok),
+           settingsStore.settings.sites.tiktok.useCookies,
+           tiktokCookiesFileURL == nil {
+            validationMessage = "TikTok 已启用 Cookies，请先选择 cookies.txt"
             return
         }
 
@@ -139,7 +147,8 @@ final class AppState: ObservableObject {
                 password: password,
                 cookiesFileURL: cookiesFileURL,
                 youtubeCookiesFileURL: youtubeCookiesFileURL,
-                xCookiesFileURL: xCookiesFileURL
+                xCookiesFileURL: xCookiesFileURL,
+                tiktokCookiesFileURL: tiktokCookiesFileURL
             ),
             selectedPages: selectedPages,
             youtubePlaylistItems: youtubePlaylistItems

@@ -96,6 +96,7 @@ enum SiteRegistry {
         PornhubAdapter(),
         YouTubeAdapter(),
         XAdapter(),
+        TikTokAdapter(),
     ]
     private static let genericAdapter = GenericSiteAdapter()
 
