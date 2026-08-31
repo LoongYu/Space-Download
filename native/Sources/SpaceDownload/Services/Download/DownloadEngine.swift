@@ -137,6 +137,8 @@ final class DownloadEngine {
         for (offset, originalItem) in items.enumerated() {
             if isCancelled { break }
             var item = originalItem
+            let itemAdapter = SiteRegistry.adapter(for: item.url)
+            let mediaSettings = effectiveRequest.settings.mediaSettings(for: itemAdapter.siteID)
             onEvent(.itemStarted(
                 index: summary.completed + summary.failures.count + 1,
                 total: items.count + preparationFailures.count,
@@ -199,7 +201,7 @@ final class DownloadEngine {
                 onEvent(.log("WARN: 完整 metadata 保存失败：\(error.localizedDescription)"))
             }
 
-            let translatedTitle = effectiveRequest.settings.translateTitle
+            let translatedTitle = mediaSettings.translateTitle
                 ? await translator.translate(item.title)
                 : item.title
             if translatedTitle != item.title {
@@ -245,7 +247,7 @@ final class DownloadEngine {
 
             summary.completed += 1
             onEvent(.itemSucceeded(title: item.title, url: item.url))
-            if effectiveRequest.settings.embedThumbnail,
+            if mediaSettings.embedThumbnail,
                let thumbnailText = metadata["thumbnail"] as? String,
                let thumbnailURL = URL(string: thumbnailText),
                let videoPath = resultInfo["filepath"] ?? resultInfo["_filename"] {

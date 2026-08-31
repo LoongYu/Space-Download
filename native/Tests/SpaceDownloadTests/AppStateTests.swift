@@ -50,7 +50,6 @@ final class AppStateTests: XCTestCase {
         appState.linkText = "https://www.youtube.com/playlist?list=PL123"
         appState.settingsStore.settings.sites.youtube.playlistSelection = "4-2"
 
-        XCTAssertEqual(appState.activeSettingsSite, .youtube)
         XCTAssertEqual(appState.detectedSiteLabel, "YouTube")
 
         appState.startDownload()

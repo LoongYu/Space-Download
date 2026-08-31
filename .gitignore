@@ -48,6 +48,7 @@ cookies
 *.opus
 *.png
 !native/Resources/SpaceDownload.icon/Assets/*.png
+!native/Sources/SpaceDownload/Resources/SiteIcons/*.png
 *.sbv
 *.srt
 *.ssa

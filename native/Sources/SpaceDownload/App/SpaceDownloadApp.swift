@@ -12,5 +12,12 @@ struct SpaceDownloadApp: App {
         }
         .defaultSize(width: 1600, height: 900)
         .windowStyle(.hiddenTitleBar)
+
+        Settings {
+            SettingsView()
+                .environmentObject(appState)
+        }
+        .defaultSize(width: 860, height: 640)
+        .windowResizability(.contentSize)
     }
 }

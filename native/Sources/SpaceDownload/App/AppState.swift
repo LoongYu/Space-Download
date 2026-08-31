@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 @MainActor
 final class AppState: ObservableObject {
     @Published var linkText = ""
-    @Published var isSettingsVisible = true
     @Published var validationMessage: String?
     @Published var password = ""
     @Published var cookiesFileURL: URL?
@@ -34,13 +33,6 @@ final class AppState: ObservableObject {
         LinkParser.parse(linkText).validURLs
     }
 
-    var activeSettingsSite: SiteID {
-        if let selected = settingsStore.settings.selectedSite.siteID {
-            return selected
-        }
-        return parsedLinks.compactMap { SiteRegistry.adapter(for: $0).siteID }.first ?? .pornhub
-    }
-
     var detectedSiteLabel: String {
         let sites = SiteRegistry.detectedSites(in: parsedLinks)
         if sites.isEmpty { return "等待识别站点" }
@@ -60,10 +52,6 @@ final class AppState: ObservableObject {
 
         guard panel.runModal() == .OK, let selectedURL = panel.url else { return }
         settingsStore.settings.downloadPath = selectedURL.path
-    }
-
-    func chooseCookiesFile() {
-        chooseCookiesFile(for: activeSettingsSite)
     }
 
     func chooseCookiesFile(for siteID: SiteID) {

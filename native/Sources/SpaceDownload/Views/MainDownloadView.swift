@@ -17,10 +17,6 @@ struct MainDownloadView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            if !appState.isSettingsVisible {
-                Color.clear
-                    .frame(width: 42, height: 1)
-            }
             HStack(spacing: 0) {
                 Text("Space")
                     .foregroundStyle(.white)

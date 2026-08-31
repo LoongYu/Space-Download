@@ -11,8 +11,12 @@ final class SettingsStore: ObservableObject {
 
     init(fileURL: URL? = nil) {
         let resolvedURL = fileURL ?? Self.defaultFileURL()
+        let storedVersion = Self.storedSchemaVersion(at: resolvedURL)
         self.fileURL = resolvedURL
         self.settings = Self.load(from: resolvedURL)
+        if storedVersion != nil, storedVersion != settings.schemaVersion {
+            save()
+        }
     }
 
     static func defaultFileURL(fileManager: FileManager = .default) -> URL {
@@ -45,5 +49,12 @@ final class SettingsStore: ObservableObject {
             return .defaults
         }
         return settings
+    }
+
+    private static func storedSchemaVersion(at fileURL: URL) -> Int? {
+        guard let data = try? Data(contentsOf: fileURL),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return object["schema_version"] as? Int ?? 0
     }
 }

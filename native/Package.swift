@@ -13,7 +13,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "SpaceDownload",
-            path: "Sources/SpaceDownload"
+            path: "Sources/SpaceDownload",
+            exclude: ["Resources"]
         ),
         .testTarget(
             name: "SpaceDownloadTests",

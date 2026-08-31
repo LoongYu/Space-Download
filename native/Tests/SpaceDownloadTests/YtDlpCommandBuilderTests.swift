@@ -8,6 +8,8 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         settings.downloadPath = "/tmp/downloads"
         settings.quality = .hd
         settings.outputFormat = .mkv
+        settings.common.rateLimit = .fiveMB
+        settings.common.concurrentFragments = 4
         settings.useProxy = true
         settings.proxyURL = "http://127.0.0.1:7890"
         settings.username = "user"
@@ -37,6 +39,9 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertTrue(arguments.contains("secret"))
         XCTAssertTrue(arguments.contains("https://www.pornhub.com/"))
         XCTAssertTrue(arguments.contains("新标题"))
+        XCTAssertTrue(arguments.contains("5M"))
+        let fragmentsIndex = try XCTUnwrap(arguments.firstIndex(of: "--concurrent-fragments"))
+        XCTAssertEqual(arguments[fragmentsIndex + 1], "4")
         XCTAssertTrue(arguments.contains("5"))
         XCTAssertTrue(arguments.contains("--progress"))
     }
@@ -48,6 +53,7 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         settings.sites.youtube.subtitleMode = .manualAndAuto
         settings.sites.youtube.subtitleLanguages = "zh-Hans,en.*"
         settings.sites.youtube.requestIntervalSeconds = 5
+        settings.sites.youtube.media.filenameTemplate = .title
         let youtubeCookies = URL(fileURLWithPath: "/tmp/youtube-cookies.txt")
         let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
         let request = DownloadRequest(
@@ -84,6 +90,8 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertFalse(arguments.contains("pornhub-user"))
         XCTAssertFalse(arguments.contains("pornhub-password"))
         XCTAssertFalse(arguments.contains("https://www.pornhub.com/"))
+        let outputIndex = try XCTUnwrap(arguments.firstIndex(of: "--output"))
+        XCTAssertEqual(arguments[outputIndex + 1], "%(title)s(%(id)s).%(ext)s")
     }
 
     func testBuildsYouTubePlaylistItemSelection() throws {

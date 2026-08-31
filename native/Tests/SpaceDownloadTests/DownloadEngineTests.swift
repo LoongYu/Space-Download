@@ -212,6 +212,50 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertTrue(allArguments.contains("https://www.youtube.com/watch?v=abc12345678"))
         XCTAssertTrue(allArguments.contains("https://www.youtube.com/watch?v=def12345678"))
     }
+
+    func testYouTubeMediaOptionsDoNotReusePornhubOptions() async throws {
+        let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc12345678"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(
+                exitCode: 0,
+                lines: [#"{"id":"abc12345678","title":"Video","thumbnail":"https://example.com/a.jpg"}"#]
+            ),
+            ProcessExecutionResult(
+                exitCode: 0,
+                lines: [#"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/video.mp4"}"#]
+            ),
+        ])
+        let translator = RecordingTitleTranslator()
+        let thumbnail = RecordingThumbnailService()
+        let engine = DownloadEngine(
+            tools: ToolLocations(ytDlp: URL(fileURLWithPath: "/usr/bin/true"), ffmpeg: nil),
+            executor: executor,
+            translator: translator,
+            thumbnailService: thumbnail,
+            metadataLogger: DisabledMetadataDebugLogger()
+        )
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.sites.pornhub.media.translateTitle = true
+        settings.sites.pornhub.media.embedThumbnail = true
+        settings.sites.youtube.media.translateTitle = false
+        settings.sites.youtube.media.embedThumbnail = false
+        settings.sites.youtube.requestIntervalSeconds = 0
+
+        let summary = await engine.execute(
+            request: DownloadRequest(
+                sourceURLs: [url],
+                settings: settings,
+                credentials: .init(),
+                selectedPages: nil
+            ),
+            onEvent: { _ in }
+        )
+
+        XCTAssertEqual(summary.completed, 1)
+        XCTAssertEqual(translator.translationCount, 0)
+        XCTAssertEqual(thumbnail.downloadCount, 0)
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {
@@ -255,5 +299,17 @@ final class RecordingThumbnailService: ThumbnailDownloading {
             recordedHeaders = headers
         }
         return videoURL.deletingPathExtension().appendingPathExtension("jpg")
+    }
+}
+
+final class RecordingTitleTranslator: TitleTranslating {
+    private let lock = NSLock()
+    private var count = 0
+
+    var translationCount: Int { lock.withLock { count } }
+
+    func translate(_ text: String) async -> String {
+        lock.withLock { count += 1 }
+        return "翻译：\(text)"
     }
 }

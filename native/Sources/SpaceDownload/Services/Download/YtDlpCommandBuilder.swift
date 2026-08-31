@@ -34,12 +34,14 @@ struct YtDlpCommandBuilder {
     ) -> [String] {
         let settings = request.settings
         let adapter = SiteRegistry.adapter(for: item.url)
+        let mediaSettings = settings.mediaSettings(for: adapter.siteID)
+        let concurrentFragments = min(max(settings.common.concurrentFragments, 1), 16)
         var arguments = commonNetworkArguments(for: item.url, phase: .download, request: request)
         arguments += [
             "--no-playlist",
             "--retries", "5",
             "--fragment-retries", "5",
-            "--concurrent-fragments", "8",
+            "--concurrent-fragments", String(concurrentFragments),
             "--progress",
             "--progress-delta", "0.25",
             "--socket-timeout", "30",
@@ -49,10 +51,13 @@ struct YtDlpCommandBuilder {
             "--recode-video", settings.outputFormat.rawValue,
             "--paths", "home:\(settings.downloadPath)",
             "--paths", "temp:\(temporaryDirectory.path)",
-            "--output", "\(settings.resolvedFilenameTemplate).%(ext)s",
+            "--output", "\(mediaSettings.resolvedFilenameTemplate).%(ext)s",
             "--progress-template", "download:\(Self.progressPrefix)%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
             "--print", "after_move:\(Self.resultPrefix)%()j",
         ]
+        if let rateLimit = settings.common.rateLimit.ytDlpValue {
+            arguments += ["--limit-rate", rateLimit]
+        }
         arguments += adapter.downloadArguments(for: request)
         if let ffmpeg = tools.ffmpeg {
             arguments += ["--ffmpeg-location", ffmpeg.path]

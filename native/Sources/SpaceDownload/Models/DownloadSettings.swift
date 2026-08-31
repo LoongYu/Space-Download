@@ -28,6 +28,30 @@ enum OutputFormat: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum DownloadRateLimit: String, Codable, CaseIterable, Identifiable {
+    case unlimited = "不限速"
+    case oneMB = "1 MB/s"
+    case twoMB = "2 MB/s"
+    case fiveMB = "5 MB/s"
+    case tenMB = "10 MB/s"
+    case twentyMB = "20 MB/s"
+    case fiftyMB = "50 MB/s"
+
+    var id: String { rawValue }
+
+    var ytDlpValue: String? {
+        switch self {
+        case .unlimited: nil
+        case .oneMB: "1M"
+        case .twoMB: "2M"
+        case .fiveMB: "5M"
+        case .tenMB: "10M"
+        case .twentyMB: "20M"
+        case .fiftyMB: "50M"
+        }
+    }
+}
+
 enum FilenameTemplate: String, Codable, CaseIterable, Identifiable {
     case title = "仅标题(id)"
     case uploaderTitle = "作者-标题(id)"
@@ -62,6 +86,8 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
         case .youtube: "YouTube"
         }
     }
+
+    var iconResourceName: String { rawValue }
 }
 
 enum SiteSelection: String, Codable, CaseIterable, Identifiable {
@@ -127,21 +153,32 @@ struct CommonDownloadSettings: Codable, Equatable {
     var downloadPath: String
     var quality: DownloadQuality
     var outputFormat: OutputFormat
-    var filenameTemplate: FilenameTemplate
-    var customTemplate: String
-    var translateTitle: Bool
-    var embedThumbnail: Bool
+    var rateLimit: DownloadRateLimit
+    var concurrentFragments: Int
     var useProxy: Bool
     var proxyURL: String
 }
 
+struct SiteMediaSettings: Codable, Equatable {
+    var filenameTemplate: FilenameTemplate
+    var customTemplate: String
+    var translateTitle: Bool
+    var embedThumbnail: Bool
+
+    var resolvedFilenameTemplate: String {
+        filenameTemplate.rule ?? customTemplate
+    }
+}
+
 struct PornhubSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
     var pageSelection: String
     var username: String
     var useCookies: Bool
 }
 
 struct YouTubeSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
     var playlistSelection: String
     var channelScope: YouTubeChannelScope
     var subtitleMode: YouTubeSubtitleMode
@@ -157,8 +194,11 @@ struct PerSiteDownloadSettings: Codable, Equatable {
 }
 
 extension DownloadSettings {
-    var resolvedFilenameTemplate: String {
-        filenameTemplate.rule ?? customTemplate
+    func mediaSettings(for siteID: SiteID?) -> SiteMediaSettings {
+        switch siteID {
+        case .youtube: sites.youtube.media
+        case .pornhub, .none: sites.pornhub.media
+        }
     }
 }
 
@@ -170,23 +210,27 @@ struct DownloadSettings: Codable, Equatable {
 
     static var defaults: DownloadSettings {
         DownloadSettings(
-            schemaVersion: 2,
+            schemaVersion: 3,
             selectedSite: .automatic,
             common: CommonDownloadSettings(
                 downloadPath: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
                     ?? NSHomeDirectory() + "/Downloads",
                 quality: .best,
                 outputFormat: .mp4,
-                filenameTemplate: .uploaderDateTitle,
-                customTemplate: "%(title)s(%(id)s)",
-                translateTitle: true,
-                embedThumbnail: true,
+                rateLimit: .unlimited,
+                concurrentFragments: 8,
                 useProxy: false,
                 proxyURL: "http://127.0.0.1:7890"
             ),
             sites: PerSiteDownloadSettings(
-                pornhub: PornhubSiteSettings(pageSelection: "", username: "", useCookies: false),
+                pornhub: PornhubSiteSettings(
+                    media: .defaults,
+                    pageSelection: "",
+                    username: "",
+                    useCookies: false
+                ),
                 youtube: YouTubeSiteSettings(
+                    media: .defaults,
                     playlistSelection: "",
                     channelScope: .videos,
                     subtitleMode: .none,
@@ -237,34 +281,122 @@ struct DownloadSettings: Codable, Equatable {
         let defaults = Self.defaults
         let modern = try decoder.container(keyedBy: CodingKeys.self)
         if modern.contains(.common) || modern.contains(.sites) {
-            schemaVersion = try modern.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 2
+            let storedVersion = try modern.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 2
             selectedSite = try modern.decodeIfPresent(SiteSelection.self, forKey: .selectedSite) ?? .automatic
-            common = try modern.decodeIfPresent(CommonDownloadSettings.self, forKey: .common) ?? defaults.common
-            sites = try modern.decodeIfPresent(PerSiteDownloadSettings.self, forKey: .sites) ?? defaults.sites
+            if storedVersion >= 3 {
+                schemaVersion = storedVersion
+                common = try modern.decodeIfPresent(CommonDownloadSettings.self, forKey: .common) ?? defaults.common
+                sites = try modern.decodeIfPresent(PerSiteDownloadSettings.self, forKey: .sites) ?? defaults.sites
+            } else {
+                let oldCommon = try modern.decodeIfPresent(V2CommonDownloadSettings.self, forKey: .common)
+                let oldSites = try modern.decodeIfPresent(V2PerSiteDownloadSettings.self, forKey: .sites)
+                let media = SiteMediaSettings(
+                    filenameTemplate: oldCommon?.filenameTemplate ?? defaults.sites.pornhub.media.filenameTemplate,
+                    customTemplate: oldCommon?.customTemplate ?? defaults.sites.pornhub.media.customTemplate,
+                    translateTitle: oldCommon?.translateTitle ?? defaults.sites.pornhub.media.translateTitle,
+                    embedThumbnail: oldCommon?.embedThumbnail ?? defaults.sites.pornhub.media.embedThumbnail
+                )
+                schemaVersion = 3
+                common = CommonDownloadSettings(
+                    downloadPath: oldCommon?.downloadPath ?? defaults.downloadPath,
+                    quality: oldCommon?.quality ?? defaults.quality,
+                    outputFormat: oldCommon?.outputFormat ?? defaults.outputFormat,
+                    rateLimit: .unlimited,
+                    concurrentFragments: 8,
+                    useProxy: oldCommon?.useProxy ?? defaults.useProxy,
+                    proxyURL: oldCommon?.proxyURL ?? defaults.proxyURL
+                )
+                sites = PerSiteDownloadSettings(
+                    pornhub: PornhubSiteSettings(
+                        media: media,
+                        pageSelection: oldSites?.pornhub.pageSelection ?? defaults.pageSelection,
+                        username: oldSites?.pornhub.username ?? defaults.username,
+                        useCookies: oldSites?.pornhub.useCookies ?? defaults.useCookies
+                    ),
+                    youtube: YouTubeSiteSettings(
+                        media: media,
+                        playlistSelection: oldSites?.youtube.playlistSelection ?? defaults.sites.youtube.playlistSelection,
+                        channelScope: oldSites?.youtube.channelScope ?? defaults.sites.youtube.channelScope,
+                        subtitleMode: oldSites?.youtube.subtitleMode ?? defaults.sites.youtube.subtitleMode,
+                        subtitleLanguages: oldSites?.youtube.subtitleLanguages ?? defaults.sites.youtube.subtitleLanguages,
+                        codecPreference: oldSites?.youtube.codecPreference ?? defaults.sites.youtube.codecPreference,
+                        requestIntervalSeconds: oldSites?.youtube.requestIntervalSeconds ?? defaults.sites.youtube.requestIntervalSeconds,
+                        useCookies: oldSites?.youtube.useCookies ?? defaults.sites.youtube.useCookies
+                    )
+                )
+            }
             return
         }
 
         let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        schemaVersion = 2
+        schemaVersion = 3
         selectedSite = .automatic
+        let legacyMedia = SiteMediaSettings(
+            filenameTemplate: try legacy.decodeIfPresent(FilenameTemplate.self, forKey: .filenameTemplate) ?? defaults.filenameTemplate,
+            customTemplate: try legacy.decodeIfPresent(String.self, forKey: .customTemplate) ?? defaults.customTemplate,
+            translateTitle: try legacy.decodeIfPresent(Bool.self, forKey: .translateTitle) ?? defaults.translateTitle,
+            embedThumbnail: try legacy.decodeIfPresent(Bool.self, forKey: .embedThumbnail) ?? defaults.embedThumbnail
+        )
         common = CommonDownloadSettings(
             downloadPath: try legacy.decodeIfPresent(String.self, forKey: .downloadPath) ?? defaults.downloadPath,
             quality: try legacy.decodeIfPresent(DownloadQuality.self, forKey: .quality) ?? defaults.quality,
             outputFormat: try legacy.decodeIfPresent(OutputFormat.self, forKey: .outputFormat) ?? defaults.outputFormat,
-            filenameTemplate: try legacy.decodeIfPresent(FilenameTemplate.self, forKey: .filenameTemplate) ?? defaults.filenameTemplate,
-            customTemplate: try legacy.decodeIfPresent(String.self, forKey: .customTemplate) ?? defaults.customTemplate,
-            translateTitle: try legacy.decodeIfPresent(Bool.self, forKey: .translateTitle) ?? defaults.translateTitle,
-            embedThumbnail: try legacy.decodeIfPresent(Bool.self, forKey: .embedThumbnail) ?? defaults.embedThumbnail,
+            rateLimit: .unlimited,
+            concurrentFragments: 8,
             useProxy: try legacy.decodeIfPresent(Bool.self, forKey: .useProxy) ?? defaults.useProxy,
             proxyURL: try legacy.decodeIfPresent(String.self, forKey: .proxyURL) ?? defaults.proxyURL
         )
         sites = defaults.sites
         sites.pornhub = PornhubSiteSettings(
+            media: legacyMedia,
             pageSelection: try legacy.decodeIfPresent(String.self, forKey: .pageSelection) ?? defaults.pageSelection,
             username: try legacy.decodeIfPresent(String.self, forKey: .username) ?? defaults.username,
             useCookies: try legacy.decodeIfPresent(Bool.self, forKey: .useCookies) ?? defaults.useCookies
         )
+        sites.youtube.media = legacyMedia
     }
+}
+
+extension SiteMediaSettings {
+    static let defaults = SiteMediaSettings(
+        filenameTemplate: .uploaderDateTitle,
+        customTemplate: "%(title)s(%(id)s)",
+        translateTitle: true,
+        embedThumbnail: true
+    )
+}
+
+private struct V2CommonDownloadSettings: Codable {
+    var downloadPath: String
+    var quality: DownloadQuality
+    var outputFormat: OutputFormat
+    var filenameTemplate: FilenameTemplate
+    var customTemplate: String
+    var translateTitle: Bool
+    var embedThumbnail: Bool
+    var useProxy: Bool
+    var proxyURL: String
+}
+
+private struct V2PornhubSiteSettings: Codable {
+    var pageSelection: String
+    var username: String
+    var useCookies: Bool
+}
+
+private struct V2YouTubeSiteSettings: Codable {
+    var playlistSelection: String
+    var channelScope: YouTubeChannelScope
+    var subtitleMode: YouTubeSubtitleMode
+    var subtitleLanguages: String
+    var codecPreference: YouTubeCodecPreference
+    var requestIntervalSeconds: Int
+    var useCookies: Bool
+}
+
+private struct V2PerSiteDownloadSettings: Codable {
+    var pornhub: V2PornhubSiteSettings
+    var youtube: V2YouTubeSiteSettings
 }
 
 extension DownloadSettings {
@@ -284,23 +416,23 @@ extension DownloadSettings {
     }
 
     var filenameTemplate: FilenameTemplate {
-        get { common.filenameTemplate }
-        set { common.filenameTemplate = newValue }
+        get { sites.pornhub.media.filenameTemplate }
+        set { sites.pornhub.media.filenameTemplate = newValue }
     }
 
     var customTemplate: String {
-        get { common.customTemplate }
-        set { common.customTemplate = newValue }
+        get { sites.pornhub.media.customTemplate }
+        set { sites.pornhub.media.customTemplate = newValue }
     }
 
     var translateTitle: Bool {
-        get { common.translateTitle }
-        set { common.translateTitle = newValue }
+        get { sites.pornhub.media.translateTitle }
+        set { sites.pornhub.media.translateTitle = newValue }
     }
 
     var embedThumbnail: Bool {
-        get { common.embedThumbnail }
-        set { common.embedThumbnail = newValue }
+        get { sites.pornhub.media.embedThumbnail }
+        set { sites.pornhub.media.embedThumbnail = newValue }
     }
 
     var useProxy: Bool {

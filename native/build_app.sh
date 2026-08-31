@@ -21,6 +21,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
 cp "$BUILD_DIR/release/SpaceDownload" "$CONTENTS_DIR/MacOS/SpaceDownload"
 cp "$SCRIPT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
+cp -R "$SCRIPT_DIR/Sources/SpaceDownload/Resources/SiteIcons" "$CONTENTS_DIR/Resources/"
 xcrun actool "$ICON_SOURCE" \
     --compile "$CONTENTS_DIR/Resources" \
     --platform macosx \
