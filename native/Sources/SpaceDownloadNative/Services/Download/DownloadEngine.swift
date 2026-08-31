@@ -140,6 +140,18 @@ final class DownloadEngine {
                 url: item.url
             ))
 
+            let downloadDirectory = URL(fileURLWithPath: effectiveRequest.settings.downloadPath, isDirectory: true)
+            if let inferredID = ExistingVideoLocator.videoID(from: item.url),
+               let existingFile = ExistingVideoLocator.find(videoID: inferredID, in: downloadDirectory) {
+                summary.completed += 1
+                onEvent(.itemSkipped(
+                    title: existingFile.deletingPathExtension().lastPathComponent,
+                    url: item.url,
+                    existingFile: existingFile
+                ))
+                continue
+            }
+
             let metadataExecution = await executor.run(
                 executable: tools.ytDlp,
                 arguments: builder.metadataArguments(for: item.url, request: effectiveRequest),
@@ -165,6 +177,12 @@ final class DownloadEngine {
 
             if let title = metadata["title"] as? String, !title.isEmpty {
                 item = DownloadItem(url: item.url, title: title, page: item.page, pageIndex: item.pageIndex)
+            }
+            if let metadataID = metadata["id"] as? String,
+               let existingFile = ExistingVideoLocator.find(videoID: metadataID, in: downloadDirectory) {
+                summary.completed += 1
+                onEvent(.itemSkipped(title: item.title, url: item.url, existingFile: existingFile))
+                continue
             }
             let metadataLabel = metadataLabel(item: item, position: offset + 1)
             onEvent(.log(metadataSummaryLog(metadata, label: metadataLabel)))

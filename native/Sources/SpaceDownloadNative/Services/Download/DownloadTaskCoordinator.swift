@@ -121,6 +121,11 @@ final class DownloadTaskCoordinator: ObservableObject {
             eta = itemETA.isEmpty ? "--" : itemETA
             let total = max(totalCount, 1)
             progress = min((Double(completedCount + failedCount) + itemProgress) / Double(total), 1)
+        case let .itemSkipped(title, url, existingFile):
+            completedCount += 1
+            updateOverallProgress()
+            let displayTitle = title.isEmpty ? url.absoluteString : title
+            appendLog("已下载，当前跳过：\(displayTitle) | \(existingFile.path)")
         case let .itemSucceeded(title, url):
             completedCount += 1
             updateOverallProgress()

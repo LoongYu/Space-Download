@@ -127,6 +127,40 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertEqual(summary.failures.count, 1)
         XCTAssertEqual(summary.failures.first?.reason, "未获取到可下载的视频链接")
     }
+
+    func testExistingVideoIDSkipsWithoutCallingYtDlp() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let existingFile = directory.appendingPathComponent("Existing title(abc123).mp4")
+        try Data().write(to: existingFile)
+        let url = try XCTUnwrap(URL(string: "https://www.pornhub.com/view_video.php?viewkey=abc123"))
+        let executor = ScriptedProcessExecutor(results: [])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.downloadPath = directory.path
+        var events: [DownloadEngineEvent] = []
+
+        let summary = await engine.execute(
+            request: DownloadRequest(sourceURLs: [url], settings: settings, credentials: .init(), selectedPages: nil),
+            onEvent: { events.append($0) }
+        )
+
+        XCTAssertEqual(summary.completed, 1)
+        XCTAssertTrue(executor.recordedArguments.isEmpty)
+        let skippedEvent = try XCTUnwrap(events.first { event in
+            if case .itemSkipped = event { return true }
+            return false
+        })
+        guard case let .itemSkipped(title, skippedURL, foundFile) = skippedEvent else {
+            return XCTFail("Expected skipped event")
+        }
+        XCTAssertEqual(title, "Existing title(abc123)")
+        XCTAssertEqual(skippedURL, url)
+        XCTAssertEqual(foundFile.resolvingSymlinksInPath(), existingFile.resolvingSymlinksInPath())
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {

@@ -41,6 +41,7 @@ enum DownloadEngineEvent: Equatable {
     case prepared(total: Int)
     case itemStarted(index: Int, total: Int, title: String, url: URL)
     case itemProgress(Double, speed: String, eta: String)
+    case itemSkipped(title: String, url: URL, existingFile: URL)
     case itemSucceeded(title: String, url: URL)
     case itemFailed(DownloadFailure)
 }
