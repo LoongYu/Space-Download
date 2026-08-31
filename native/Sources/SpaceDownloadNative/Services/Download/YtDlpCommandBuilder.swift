@@ -34,11 +34,11 @@ struct YtDlpCommandBuilder {
         var arguments = commonNetworkArguments(for: item.url, request: request)
         arguments += [
             "--no-playlist",
-            "--newline",
-            "--no-color",
             "--retries", "5",
             "--fragment-retries", "5",
             "--concurrent-fragments", "8",
+            "--progress",
+            "--progress-delta", "0.25",
             "--socket-timeout", "30",
             "--no-part",
             "--format", settings.quality.ytDlpFormat,
@@ -62,7 +62,8 @@ struct YtDlpCommandBuilder {
 
     private func commonNetworkArguments(for url: URL, request: DownloadRequest) -> [String] {
         var arguments = [
-            "--no-warnings",
+            "--newline",
+            "--no-color",
             "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
             "--add-header", "Accept-Language:en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         ]

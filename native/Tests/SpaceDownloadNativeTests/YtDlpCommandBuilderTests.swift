@@ -38,5 +38,6 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertTrue(arguments.contains("https://www.pornhub.com/"))
         XCTAssertTrue(arguments.contains("新标题"))
         XCTAssertTrue(arguments.contains("5"))
+        XCTAssertTrue(arguments.contains("--progress"))
     }
 }

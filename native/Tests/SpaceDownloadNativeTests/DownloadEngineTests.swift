@@ -8,6 +8,7 @@ final class DownloadEngineTests: XCTestCase {
         let executor = ScriptedProcessExecutor(results: [
             ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"abc","title":"Video","thumbnail":"https://example.com/a.jpg"}"#]),
             ProcessExecutionResult(exitCode: 0, lines: [
+                "[download] Destination: /tmp/video.mp4",
                 "SPACEDOWNLOAD_PROGRESS:50%|1MiB/s|00:05",
                 #"SPACEDOWNLOAD_RESULT:{"id":"abc","title":"Video","filepath":"/tmp/video.mp4"}"#,
             ]),
@@ -25,6 +26,9 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertEqual(summary.completed, 1)
         XCTAssertTrue(summary.failures.isEmpty)
         XCTAssertTrue(events.contains(.itemProgress(0.5, speed: "1MiB/s", eta: "00:05")))
+        XCTAssertTrue(events.contains(.log("[下载] [download] Destination: /tmp/video.mp4")))
+        XCTAssertTrue(events.contains(.log("[下载进度] 50.0% | 速度 1MiB/s | 剩余 00:05")))
+        XCTAssertTrue(events.contains(.log("[下载] 文件已写入：/tmp/video.mp4")))
         XCTAssertTrue(events.contains(.itemSucceeded(title: "Video", url: url)))
     }
 

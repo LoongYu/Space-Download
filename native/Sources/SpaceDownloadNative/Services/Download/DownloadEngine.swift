@@ -78,7 +78,11 @@ final class DownloadEngine {
                     let extraction = await executor.run(
                         executable: tools.ytDlp,
                         arguments: builder.collectionArguments(for: collectionURL, request: effectiveRequest),
-                        onLine: { _ in }
+                        onLine: { line in
+                            if let message = liveToolMessage(line, phase: "列表解析") {
+                                onEvent(.log(message))
+                            }
+                        }
                     )
                     guard extraction.exitCode == 0,
                           let object = jsonObject(from: extraction.lines)
@@ -136,7 +140,11 @@ final class DownloadEngine {
             let metadataExecution = await executor.run(
                 executable: tools.ytDlp,
                 arguments: builder.metadataArguments(for: item.url, request: effectiveRequest),
-                onLine: { _ in }
+                onLine: { line in
+                    if let message = liveToolMessage(line, phase: "视频解析") {
+                        onEvent(.log(message))
+                    }
+                }
             )
             guard metadataExecution.exitCode == 0,
                   let metadata = jsonObject(from: metadataExecution.lines)
@@ -178,10 +186,14 @@ final class DownloadEngine {
                     switch parsed {
                     case let .progress(progress):
                         onEvent(.itemProgress(progress.fraction, speed: progress.speed, eta: progress.eta))
+                        onEvent(.log(progressLog(progress)))
                     case let .result(result):
                         resultInfo = result
+                        if let path = result["filepath"] ?? result["_filename"] {
+                            onEvent(.log("[下载] 文件已写入：\(path)"))
+                        }
                     case let .log(message):
-                        onEvent(.log(message))
+                        onEvent(.log("[下载] \(message)"))
                     }
                 }
             )
@@ -301,6 +313,20 @@ private func metadataLog(_ metadata: [String: Any], item: DownloadItem, position
         return "\(label): <empty>"
     }
     return "\(label):\n\(text)"
+}
+
+private func liveToolMessage(_ line: String, phase: String) -> String? {
+    let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !value.isEmpty else { return nil }
+    if value.first == "{", value.last == "}" { return nil }
+    return "[\(phase)] \(value)"
+}
+
+private func progressLog(_ progress: ParsedProgress) -> String {
+    let percentage = String(format: "%.1f%%", progress.fraction * 100)
+    let speed = progress.speed.isEmpty ? "--" : progress.speed
+    let eta = progress.eta.isEmpty ? "--" : progress.eta
+    return "[下载进度] \(percentage) | 速度 \(speed) | 剩余 \(eta)"
 }
 
 private func deduplicated(_ items: [DownloadItem]) -> [DownloadItem] {

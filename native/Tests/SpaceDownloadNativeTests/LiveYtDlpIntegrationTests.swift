@@ -88,5 +88,6 @@ final class LiveYtDlpIntegrationTests: XCTestCase {
         XCTAssertGreaterThan(observedProgress, 0)
         XCTAssertTrue(coordinator.status == .idle || coordinator.status == .completed)
         XCTAssertTrue(coordinator.logs.contains { $0.contains("JSON metadata") })
+        XCTAssertTrue(coordinator.logs.contains { $0.contains("[下载进度]") })
     }
 }

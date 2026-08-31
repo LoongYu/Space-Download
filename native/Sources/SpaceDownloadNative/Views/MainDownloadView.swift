@@ -90,8 +90,14 @@ struct MainDownloadView: View {
                     .foregroundStyle(AppTheme.subdued)
             }
 
-            ProgressView(value: appState.taskCoordinator.progress)
-                .tint(AppTheme.orange)
+            HStack(spacing: 12) {
+                ProgressView(value: appState.taskCoordinator.progress)
+                    .tint(AppTheme.orange)
+                Text(appState.taskCoordinator.progress.formatted(.percent.precision(.fractionLength(1))))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(AppTheme.orange)
+                    .frame(width: 52, alignment: .trailing)
+            }
 
             HStack {
                 Text(appState.taskCoordinator.currentTitle.isEmpty ? "下载进度" : appState.taskCoordinator.currentTitle)
