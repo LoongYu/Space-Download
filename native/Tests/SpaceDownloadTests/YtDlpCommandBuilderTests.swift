@@ -48,6 +48,7 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         settings.sites.youtube.subtitleMode = .manualAndAuto
         settings.sites.youtube.subtitleLanguages = "zh-Hans,en.*"
         settings.sites.youtube.requestIntervalSeconds = 5
+        settings.sites.youtube.authenticationMode = .cookiesFile
         let youtubeCookies = URL(fileURLWithPath: "/tmp/youtube-cookies.txt")
         let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
         let request = DownloadRequest(
@@ -103,5 +104,29 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         let selectionIndex = try XCTUnwrap(arguments.firstIndex(of: "--playlist-items"))
         XCTAssertEqual(arguments[selectionIndex + 1], "1,3,4")
         XCTAssertTrue(arguments.contains("--flat-playlist"))
+    }
+
+    func testBuildsYouTubeChromeAuthenticationArguments() throws {
+        var settings = DownloadSettings.defaults
+        settings.sites.youtube.authenticationMode = .chrome
+        let url = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=G1LObB-BYEs"))
+        let request = DownloadRequest(
+            sourceURLs: [url],
+            settings: settings,
+            credentials: DownloadCredentials(
+                youtubeCookiesFileURL: URL(fileURLWithPath: "/tmp/stale-cookies.txt")
+            ),
+            selectedPages: nil
+        )
+
+        let arguments = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"),
+            ffmpeg: nil
+        )).metadataArguments(for: url, request: request)
+
+        let browserIndex = try XCTUnwrap(arguments.firstIndex(of: "--cookies-from-browser"))
+        XCTAssertEqual(arguments[browserIndex + 1], "chrome")
+        XCTAssertFalse(arguments.contains("--cookies"))
+        XCTAssertFalse(arguments.contains("/tmp/stale-cookies.txt"))
     }
 }

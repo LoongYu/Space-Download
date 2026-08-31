@@ -62,13 +62,25 @@ final class AppStateTests: XCTestCase {
     func testYouTubeCookiesDoNotReusePornhubCookies() {
         let appState = makeAppState()
         appState.linkText = "https://youtu.be/dQw4w9WgXcQ"
-        appState.settingsStore.settings.sites.youtube.useCookies = true
+        appState.settingsStore.settings.sites.youtube.authenticationMode = .cookiesFile
         appState.cookiesFileURL = URL(fileURLWithPath: "/tmp/pornhub-cookies.txt")
 
         appState.startDownload()
 
         XCTAssertEqual(appState.validationMessage, "YouTube 已启用 Cookies，请先选择 cookies.txt")
         XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
+    func testYouTubeChromeAuthenticationDoesNotRequireCookiesFile() {
+        let appState = makeAppState()
+        appState.linkText = "https://www.youtube.com/watch?v=G1LObB-BYEs"
+        appState.settingsStore.settings.sites.youtube.authenticationMode = .chrome
+
+        appState.startDownload()
+
+        XCTAssertNil(appState.validationMessage)
+        XCTAssertEqual(appState.taskCoordinator.status, .running)
+        appState.stopDownload()
     }
 
     func testYouTubeChannelIgnoresSavedPlaylistSelection() {

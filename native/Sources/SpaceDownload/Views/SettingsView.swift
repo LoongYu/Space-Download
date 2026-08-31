@@ -164,15 +164,37 @@ private struct SettingsViewContent: View {
             )
             .font(.system(size: 13, weight: .semibold))
 
-            DisclosureGroup("YouTube Cookies（可选）") {
-                cookiesPicker(
-                    enabled: $settingsStore.settings.sites.youtube.useCookies,
-                    fileURL: appState.youtubeCookiesFileURL,
-                    siteID: .youtube
-                )
-                .padding(.top, 10)
+            picker(
+                "认证方式",
+                selection: youtubeAuthenticationBinding,
+                values: YouTubeAuthenticationMode.allCases
+            )
+            if settingsStore.settings.sites.youtube.resolvedAuthenticationMode == .cookiesFile {
+                HStack(spacing: 8) {
+                    Text(appState.youtubeCookiesFileURL?.lastPathComponent ?? "未选择文件")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subdued)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("选择") { appState.chooseCookiesFile(for: .youtube) }
+                        .buttonStyle(OrangeButtonStyle(compact: true))
+                }
+            } else if settingsStore.settings.sites.youtube.resolvedAuthenticationMode == .chrome {
+                Text("仅在下载时由 yt-dlp 读取本机 Chrome 会话，不保存 Cookies。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
             }
         }
+    }
+
+    private var youtubeAuthenticationBinding: Binding<YouTubeAuthenticationMode> {
+        Binding(
+            get: { settingsStore.settings.sites.youtube.resolvedAuthenticationMode },
+            set: { mode in
+                settingsStore.settings.sites.youtube.authenticationMode = mode
+                settingsStore.settings.sites.youtube.useCookies = mode == .cookiesFile
+            }
+        )
     }
 
     private func cookiesPicker(

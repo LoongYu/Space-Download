@@ -95,7 +95,10 @@ struct YtDlpCommandBuilder {
             arguments += ["--username", request.settings.username]
             arguments += ["--password", request.credentials.password]
         }
-        if let cookieURL = request.credentials.cookiesFileURL(for: adapter.siteID) {
+        let shouldUseCookieFile = adapter.siteID != .youtube
+            || request.settings.sites.youtube.resolvedAuthenticationMode == .cookiesFile
+        if shouldUseCookieFile,
+           let cookieURL = request.credentials.cookiesFileURL(for: adapter.siteID) {
             arguments += ["--cookies", cookieURL.path]
         }
         return arguments
