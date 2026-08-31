@@ -84,7 +84,7 @@ final class DownloadEngineTests: XCTestCase {
         let url = try XCTUnwrap(URL(string: "https://example.com/video"))
         let thumbnail = RecordingThumbnailService()
         let executor = ScriptedProcessExecutor(results: [
-            ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"abc","title":"Video","thumbnail":"https://example.com/a.jpg"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"abc","title":"Video","thumbnail":"https://example.com/a.jpg","http_headers":{"Referer":"https://www.pornhub.com/","Origin":"https://www.pornhub.com"}}"#]),
             ProcessExecutionResult(exitCode: 0, lines: [#"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/video.mp4"}"#]),
         ])
         let engine = DownloadEngine(
@@ -105,6 +105,8 @@ final class DownloadEngineTests: XCTestCase {
 
         XCTAssertEqual(summary.completed, 1)
         XCTAssertEqual(thumbnail.downloadCount, 1)
+        XCTAssertEqual(thumbnail.lastHeaders?["Referer"], "https://www.pornhub.com/")
+        XCTAssertEqual(thumbnail.lastHeaders?["Origin"], "https://www.pornhub.com")
     }
 
     func testEmptyCollectionIsReportedAsFailure() async throws {
@@ -193,11 +195,16 @@ final class ScriptedProcessExecutor: ProcessExecuting {
 final class RecordingThumbnailService: ThumbnailDownloading {
     private let lock = NSLock()
     private var count = 0
+    private var recordedHeaders: [String: String]?
 
     var downloadCount: Int { lock.withLock { count } }
+    var lastHeaders: [String: String]? { lock.withLock { recordedHeaders } }
 
-    func download(from sourceURL: URL, beside videoURL: URL) async throws -> URL {
-        lock.withLock { count += 1 }
+    func download(from sourceURL: URL, beside videoURL: URL, headers: [String: String]) async throws -> URL {
+        lock.withLock {
+            count += 1
+            recordedHeaders = headers
+        }
         return videoURL.deletingPathExtension().appendingPathExtension("jpg")
     }
 }

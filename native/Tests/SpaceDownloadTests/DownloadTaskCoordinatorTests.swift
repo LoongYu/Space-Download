@@ -109,7 +109,7 @@ func makeRequest(urls: [URL]) -> DownloadRequest {
 }
 
 struct RejectingThumbnailService: ThumbnailDownloading {
-    func download(from sourceURL: URL, beside videoURL: URL) async throws -> URL {
+    func download(from sourceURL: URL, beside videoURL: URL, headers: [String: String]) async throws -> URL {
         throw URLError(.cancelled)
     }
 }

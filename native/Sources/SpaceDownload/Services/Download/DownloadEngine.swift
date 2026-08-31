@@ -248,7 +248,8 @@ final class DownloadEngine {
                 do {
                     let thumbnailPath = try await thumbnailService.download(
                         from: thumbnailURL,
-                        beside: URL(fileURLWithPath: videoPath)
+                        beside: URL(fileURLWithPath: videoPath),
+                        headers: metadataHTTPHeaders(metadata)
                     )
                     onEvent(.log("已保存封面图：\(thumbnailPath.lastPathComponent)"))
                 } catch {
@@ -295,6 +296,15 @@ final class DownloadEngine {
         } catch {
             onEvent(.log("WARN: 无法创建 Pornhub 临时 Cookies：\(error.localizedDescription)"))
             return request
+        }
+    }
+}
+
+private func metadataHTTPHeaders(_ metadata: [String: Any]) -> [String: String] {
+    guard let values = metadata["http_headers"] as? [String: Any] else { return [:] }
+    return values.reduce(into: [:]) { result, entry in
+        if let value = entry.value as? String {
+            result[entry.key] = value
         }
     }
 }
