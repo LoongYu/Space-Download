@@ -98,6 +98,22 @@ python build_release.py YYYYMMDDNN
 - **pywebview**: 桌面窗口
 - **PyInstaller**: 应用打包
 
+## 原生 macOS 重构
+
+`native/` 目录包含独立的 SwiftUI 重构工程。原生版已接入真实 `yt-dlp` 下载引擎，并完成设置持久化、目录选择、多链接、Pornhub 网页分页、实时进度、失败统计、翻译、封面、代理和认证；现有 Python 客户端保持不变。
+
+```bash
+cd native
+swift test --disable-sandbox --build-path .build \
+  --cache-path .build/cache \
+  --config-path .build/config \
+  --security-path .build/security
+./prepare_tools.sh
+./build_app.sh
+```
+
+原生 `.app` 会打包官方独立版 `yt-dlp_macos`；格式合并和转换仍需要系统安装 `ffmpeg`，或在构建时通过 `SPACEDOWNLOAD_FFMPEG_PATH` 指定可分发版本。详细说明见 [native/README.md](native/README.md)。
+
 ## 许可证
 
 [Unlicense](LICENSE) - 自由使用

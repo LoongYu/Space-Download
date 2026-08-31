@@ -136,3 +136,9 @@ yt-dlp-plugins
 # Packages
 yt_dlp_ejs/
 local_notes/
+
+# Native SwiftUI build artifacts
+native/.build/
+native/.swiftpm/
+native/DerivedData/
+native/.tools/

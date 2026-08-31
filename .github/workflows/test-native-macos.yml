@@ -1,0 +1,33 @@
+name: Test Native macOS
+
+on:
+  push:
+    paths:
+      - "native/**"
+      - ".github/workflows/test-native-macos.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - ".github/workflows/test-native-macos.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Swift package
+        run: swift test
+      - name: Download standalone yt-dlp
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./prepare_tools.sh
+      - name: Build release app
+        run: ./build_app.sh
+      - name: Verify bundled engine
+        run: |
+          test -x "dist/SpaceDownloadNative.app/Contents/Resources/yt-dlp"
+          "dist/SpaceDownloadNative.app/Contents/Resources/yt-dlp" --version
