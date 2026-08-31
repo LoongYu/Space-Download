@@ -39,6 +39,7 @@
 - 界面日志将完整 JSON metadata 精简为标题、ID、作者、时长、清晰度、格式和来源摘要
 - 完整 metadata 改为追加保存到 `~/Library/Logs/SpaceDownload/metadata.log`，供问题排查使用
 - 下载前按文件名中的视频 ID 递归检查保存目录，已存在的视频直接提示并跳过，不重复下载
+- 应用图标改为固定的 Icon Composer 单层资源，构建时统一生成 `Assets.car` 和兼容 `.icns`，避免系统重复套用背景
 
 ## 2026033101 (2026-03-31)
 

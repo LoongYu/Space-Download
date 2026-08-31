@@ -5,6 +5,7 @@ SCRIPT_DIR=${0:A:h}
 BUILD_DIR="$SCRIPT_DIR/.build"
 APP_DIR="$SCRIPT_DIR/dist/SpaceDownloadNative.app"
 CONTENTS_DIR="$APP_DIR/Contents"
+ICON_SOURCE="$SCRIPT_DIR/Resources/SpaceDownload.icon"
 
 mkdir -p "$BUILD_DIR/cache" "$BUILD_DIR/config" "$BUILD_DIR/security" "$BUILD_DIR/module-cache"
 
@@ -16,10 +17,16 @@ CLANG_MODULE_CACHE_PATH="$BUILD_DIR/module-cache" swift build \
     --config-path "$BUILD_DIR/config" \
     --security-path "$BUILD_DIR/security"
 
+rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
 cp "$BUILD_DIR/release/SpaceDownloadNative" "$CONTENTS_DIR/MacOS/SpaceDownloadNative"
 cp "$SCRIPT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$SCRIPT_DIR/Resources/SpaceDownload.icns" "$CONTENTS_DIR/Resources/SpaceDownload.icns"
+xcrun actool "$ICON_SOURCE" \
+    --compile "$CONTENTS_DIR/Resources" \
+    --platform macosx \
+    --minimum-deployment-target 14.0 \
+    --app-icon SpaceDownload \
+    --output-partial-info-plist "$BUILD_DIR/icon-info.plist"
 if [[ -x "$SCRIPT_DIR/.tools/yt-dlp" ]]; then
     cp "$SCRIPT_DIR/.tools/yt-dlp" "$CONTENTS_DIR/Resources/yt-dlp"
     chmod +x "$CONTENTS_DIR/Resources/yt-dlp"

@@ -19,6 +19,7 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - 标题中文翻译和成功后封面保存
 - 代理、账号、密码、Cookies 文件及 Pornhub 自动年龄验证 Cookies
 - 可终止当前 `yt-dlp` 子进程的停止下载功能
+- 固定使用单层 macOS 自适应图标，不再因构建环境切换为双层图标
 
 密码和 Cookies 文件路径不会写入设置文件。
 

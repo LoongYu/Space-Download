@@ -47,6 +47,7 @@ cookies
 *.ogg
 *.opus
 *.png
+!native/Resources/SpaceDownload.icon/Assets/*.png
 *.sbv
 *.srt
 *.ssa
