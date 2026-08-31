@@ -15,8 +15,29 @@ final class ProcessExecutorTests: XCTestCase {
         XCTAssertEqual(result.lines, ["first", "second"])
     }
 
-    func testLocatesInstalledYtDlp() {
-        XCTAssertNotNil(YtDlpLocator.locate())
+    func testLocatesToolsFromPath() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let ytDlp = directory.appendingPathComponent("yt-dlp")
+        let ffmpeg = directory.appendingPathComponent("ffmpeg")
+        for executable in [ytDlp, ffmpeg] {
+            try Data("#!/bin/sh\n".utf8).write(to: executable)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755],
+                ofItemAtPath: executable.path
+            )
+        }
+
+        let locations = YtDlpLocator.locate(
+            bundle: Bundle(for: Self.self),
+            environment: ["PATH": directory.path],
+            systemDirectories: []
+        )
+
+        XCTAssertEqual(locations, ToolLocations(ytDlp: ytDlp, ffmpeg: ffmpeg))
     }
 
     func testCancelTerminatesRunningProcess() async throws {
