@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0 (2026-08-31)
+
+### Instagram 公开帖子与多视频适配
+
+- 新增独立 Instagram `SiteID`、adapter、设置、Cookie 会话状态和图标；仅接受手动选择的 `cookies.txt`，不读取浏览器认证，也不复用其他站点 Cookie
+- 覆盖 `instagram.com/reel/CODE`、`/p/CODE` 与 `/tv/CODE` 标准链接，并在执行前定向移除分享查询参数和 fragment
+- 复用并泛化 X 引入的多资源任务抽象，移除图片错误中的 X 硬编码；X 的多视频、进度、失败继续、重试和重复跳过行为保持不变
+- 支持公开 Reel、单帖视频和 carousel 中的视频资源逐项下载；图片可以识别，但在未完成真实验证前明确跳过且不宣称下载支持
+- schema 从 v5 升级至 v6；读取 v5 时只补齐 Instagram 默认项，并保留 Pornhub、YouTube、X、TikTok 与抖音原配置
+- 真实匿名 metadata 验证了作者、日期、标题、ID 与多封面字段，据此采用作者/日期-标题(ID)、默认关闭翻译并保存最高像素封面
+- 使用内置 yt-dlp 2026.08.19 完成公开 Reel、`/p/` 单视频的真实下载和 ffprobe，并验证公开三视频 carousel 的第 2 项 selector；旧 `/tv/` 样例当前返回空媒体响应，未伪称下载成功
+- Swift 测试扩展至 89 项、0 失败（3 项无环境变量的 live 测试跳过）；生成并目视检查 Instagram 设置页 PNG
+- 未实现 Telegram
+
 ## 0.7.0 (2026-08-31)
 
 ### 抖音公开单视频适配

@@ -41,10 +41,12 @@ protocol SiteAdapter {
     func preferredThumbnail(from metadata: [String: Any]) -> SiteThumbnail?
     var expandsMediaResources: Bool { get }
     func mediaResources(from metadata: [String: Any], sourceURL: URL) -> [MediaResourceTask]
+    func canonicalURL(_ url: URL) -> URL
 }
 
 extension SiteAdapter {
     var expandsMediaResources: Bool { false }
+    func canonicalURL(_ url: URL) -> URL { url }
     func mediaResources(from metadata: [String: Any], sourceURL: URL) -> [MediaResourceTask] { [] }
     func collectionSources(for url: URL, request: DownloadRequest) -> [SiteCollectionSource] {
         [SiteCollectionSource(url: url, page: nil, label: classify(url) == .channel ? "频道" : "播放列表")]
@@ -98,6 +100,7 @@ enum SiteRegistry {
         XAdapter(),
         TikTokAdapter(),
         DouyinAdapter(),
+        InstagramAdapter(),
     ]
     private static let genericAdapter = GenericSiteAdapter()
 

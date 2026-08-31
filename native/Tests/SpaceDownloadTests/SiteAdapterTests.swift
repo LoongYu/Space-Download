@@ -182,6 +182,55 @@ final class SiteAdapterTests: XCTestCase {
         XCTAssertEqual(thumbnail.headers["User-Agent"], "douyin-thumbnail")
     }
 
+    func testInstagramMatchesCanonicalPostKindsAndCleansShareParameters() throws {
+        let adapter = InstagramAdapter()
+        for path in ["reel/Chunk8-jurw", "p/aye83DjauH", "tv/BkfuX9UB-eK"] {
+            let url = try XCTUnwrap(URL(string: "https://www.instagram.com/\(path)/?igsh=abc&utm_source=share#fragment"))
+            XCTAssertTrue(adapter.matches(url))
+            XCTAssertEqual(adapter.canonicalURL(url).absoluteString, "https://www.instagram.com/\(path)/")
+            XCTAssertEqual(SiteRegistry.adapter(for: url).siteID, .instagram)
+        }
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://www.instagram.com/example/"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://evil.example/reel/Chunk8-jurw/"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://www.instagram.com/p/bad.code/"))))
+    }
+
+    func testInstagramExpandsCarouselVideosAndRecognizesUnsupportedImages() throws {
+        let url = try XCTUnwrap(URL(string: "https://www.instagram.com/p/BQ0eAlwhDrw/"))
+        let resources = InstagramAdapter().mediaResources(from: ["entries": [
+            ["id": "video-1", "title": "Video 1", "ext": "mp4", "vcodec": "h264"],
+            ["id": "image-2", "title": "Photo 2", "ext": "jpg", "vcodec": "none"],
+            ["id": "video-3", "title": "Video 3", "ext": "mp4", "vcodec": "h264"],
+        ]], sourceURL: url)
+        XCTAssertEqual(resources.map(\.stableID), ["video-1", "image-2", "video-3"])
+        XCTAssertEqual(resources.map(\.kind), [.video, .image, .video])
+        XCTAssertEqual(resources.map(\.selector), [1, 2, 3])
+        XCTAssertEqual(resources.map(\.isDownloadSupported), [true, false, true])
+    }
+
+    func testInstagramSingleVideoUsesRootMetadataWithoutSelector() throws {
+        let url = try XCTUnwrap(URL(string: "https://www.instagram.com/reel/Chunk8-jurw/"))
+        let resource = try XCTUnwrap(InstagramAdapter().mediaResources(from: [
+            "id": "Chunk8-jurw", "title": "Video by instagram", "ext": "mp4",
+        ], sourceURL: url).first)
+        XCTAssertEqual(resource.kind, .video)
+        XCTAssertNil(resource.selector)
+    }
+
+    func testInstagramSelectsHighestPixelThumbnailAndMergesHeaders() throws {
+        let thumbnail = try XCTUnwrap(InstagramAdapter().preferredThumbnail(from: [
+            "http_headers": ["Referer": "https://www.instagram.com/"],
+            "thumbnails": [
+                ["url": "https://example.com/small.jpg", "width": 320, "height": 320],
+                ["url": "https://example.com/large.jpg", "width": 1080, "height": 1920,
+                 "http_headers": ["User-Agent": "instagram-thumbnail"]],
+            ],
+        ]))
+        XCTAssertEqual(thumbnail.url.absoluteString, "https://example.com/large.jpg")
+        XCTAssertEqual(thumbnail.headers["Referer"], "https://www.instagram.com/")
+        XCTAssertEqual(thumbnail.headers["User-Agent"], "instagram-thumbnail")
+    }
+
     func testYouTubeJavaScriptRuntimeLocatorFindsNodeInConfiguredDirectory() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

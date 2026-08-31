@@ -80,6 +80,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
     case x
     case tiktok
     case douyin
+    case instagram
 
     var id: String { rawValue }
 
@@ -90,6 +91,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
         case .x: "X"
         case .tiktok: "TikTok"
         case .douyin: "抖音"
+        case .instagram: "Instagram"
         }
     }
 
@@ -103,6 +105,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
     case x
     case tiktok
     case douyin
+    case instagram
 
     var id: String { rawValue }
 
@@ -114,6 +117,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .x: "X"
         case .tiktok: "TikTok"
         case .douyin: "抖音"
+        case .instagram: "Instagram"
         }
     }
 
@@ -125,6 +129,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .x: .x
         case .tiktok: .tiktok
         case .douyin: .douyin
+        case .instagram: .instagram
         }
     }
 }
@@ -218,21 +223,28 @@ struct DouyinSiteSettings: Codable, Equatable {
     var useCookies: Bool
 }
 
+struct InstagramSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
+    var useCookies: Bool
+}
+
 struct PerSiteDownloadSettings: Codable, Equatable {
     var pornhub: PornhubSiteSettings
     var youtube: YouTubeSiteSettings
     var x: XSiteSettings
     var tiktok: TikTokSiteSettings
     var douyin: DouyinSiteSettings
+    var instagram: InstagramSiteSettings
 
-    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x, tiktok, douyin }
+    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x, tiktok, douyin, instagram }
 
-    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings, tiktok: TikTokSiteSettings, douyin: DouyinSiteSettings) {
+    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings, tiktok: TikTokSiteSettings, douyin: DouyinSiteSettings, instagram: InstagramSiteSettings) {
         self.pornhub = pornhub
         self.youtube = youtube
         self.x = x
         self.tiktok = tiktok
         self.douyin = douyin
+        self.instagram = instagram
     }
 
     init(from decoder: Decoder) throws {
@@ -245,6 +257,8 @@ struct PerSiteDownloadSettings: Codable, Equatable {
             ?? TikTokSiteSettings(media: .tiktokDefaults, useCookies: false)
         douyin = try values.decodeIfPresent(DouyinSiteSettings.self, forKey: .douyin)
             ?? DouyinSiteSettings(media: .douyinDefaults, useCookies: false)
+        instagram = try values.decodeIfPresent(InstagramSiteSettings.self, forKey: .instagram)
+            ?? InstagramSiteSettings(media: .instagramDefaults, useCookies: false)
     }
 }
 
@@ -255,6 +269,7 @@ extension DownloadSettings {
         case .x: sites.x.media
         case .tiktok: sites.tiktok.media
         case .douyin: sites.douyin.media
+        case .instagram: sites.instagram.media
         case .pornhub, .none: sites.pornhub.media
         }
     }
@@ -268,7 +283,7 @@ struct DownloadSettings: Codable, Equatable {
 
     static var defaults: DownloadSettings {
         DownloadSettings(
-            schemaVersion: 5,
+            schemaVersion: 6,
             selectedSite: .automatic,
             common: CommonDownloadSettings(
                 downloadPath: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -299,7 +314,8 @@ struct DownloadSettings: Codable, Equatable {
                 ),
                 x: XSiteSettings(media: .defaults, useCookies: false),
                 tiktok: TikTokSiteSettings(media: .tiktokDefaults, useCookies: false),
-                douyin: DouyinSiteSettings(media: .douyinDefaults, useCookies: false)
+                douyin: DouyinSiteSettings(media: .douyinDefaults, useCookies: false),
+                instagram: InstagramSiteSettings(media: .instagramDefaults, useCookies: false)
             )
         )
     }
@@ -345,7 +361,7 @@ struct DownloadSettings: Codable, Equatable {
             let storedVersion = try modern.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 2
             selectedSite = try modern.decodeIfPresent(SiteSelection.self, forKey: .selectedSite) ?? .automatic
             if storedVersion >= 3 {
-                schemaVersion = 5
+                schemaVersion = 6
                 common = try modern.decodeIfPresent(CommonDownloadSettings.self, forKey: .common) ?? defaults.common
                 sites = try modern.decodeIfPresent(PerSiteDownloadSettings.self, forKey: .sites) ?? defaults.sites
             } else {
@@ -357,7 +373,7 @@ struct DownloadSettings: Codable, Equatable {
                     translateTitle: oldCommon?.translateTitle ?? defaults.sites.pornhub.media.translateTitle,
                     embedThumbnail: oldCommon?.embedThumbnail ?? defaults.sites.pornhub.media.embedThumbnail
                 )
-                schemaVersion = 5
+                schemaVersion = 6
                 common = CommonDownloadSettings(
                     downloadPath: oldCommon?.downloadPath ?? defaults.downloadPath,
                     quality: oldCommon?.quality ?? defaults.quality,
@@ -386,14 +402,15 @@ struct DownloadSettings: Codable, Equatable {
                     ),
                     x: defaults.sites.x,
                     tiktok: defaults.sites.tiktok,
-                    douyin: defaults.sites.douyin
+                    douyin: defaults.sites.douyin,
+                    instagram: defaults.sites.instagram
                 )
             }
             return
         }
 
         let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        schemaVersion = 5
+        schemaVersion = 6
         selectedSite = .automatic
         let legacyMedia = SiteMediaSettings(
             filenameTemplate: try legacy.decodeIfPresent(FilenameTemplate.self, forKey: .filenameTemplate) ?? defaults.filenameTemplate,
@@ -442,6 +459,15 @@ extension SiteMediaSettings {
     static let douyinDefaults = SiteMediaSettings(
         filenameTemplate: .title,
         customTemplate: "%(title)s(%(id)s)",
+        translateTitle: false,
+        embedThumbnail: true
+    )
+
+    // Verified against anonymous Instagram metadata: uploader, upload_date,
+    // title, id and thumbnails are populated for public Reel/post videos.
+    static let instagramDefaults = SiteMediaSettings(
+        filenameTemplate: .uploaderDateTitle,
+        customTemplate: "%(uploader)s/%(upload_date)s-%(title)s(%(id)s)",
         translateTitle: false,
         embedThumbnail: true
     )

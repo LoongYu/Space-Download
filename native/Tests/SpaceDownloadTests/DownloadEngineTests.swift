@@ -349,6 +349,38 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertTrue(executor.recordedArguments[1].contains("1"))
         XCTAssertTrue(executor.recordedArguments[2].contains("2"))
     }
+
+    func testInstagramCarouselDownloadsVideosReportsImageAndContinuesAfterFailure() async throws {
+        let url = try XCTUnwrap(URL(string: "https://www.instagram.com/p/BQ0eAlwhDrw/?igsh=share"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"_type":"playlist","entries":[{"id":"video-1","title":"first","ext":"mp4"},{"id":"image-2","title":"photo","ext":"jpg"},{"id":"video-3","title":"third","ext":"mp4"}]}"#]),
+            ProcessExecutionResult(exitCode: 1, lines: ["ERROR: first failed"]),
+            ProcessExecutionResult(exitCode: 0, lines: ["SPACEDOWNLOAD_PROGRESS:75%|3MiB/s|00:01", #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/third.mp4"}"#]),
+        ])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.sites.instagram.media.translateTitle = false
+        settings.sites.instagram.media.embedThumbnail = false
+        var events: [DownloadEngineEvent] = []
+
+        let summary = await engine.execute(request: DownloadRequest(
+            sourceURLs: [url], settings: settings, credentials: .init(), selectedPages: nil
+        )) { events.append($0) }
+
+        XCTAssertEqual(summary.completed, 1)
+        XCTAssertEqual(summary.failures.count, 2)
+        XCTAssertTrue(summary.failures.contains { $0.reason.contains("尚未验证 Instagram 图片下载") })
+        XCTAssertTrue(summary.failures.contains { $0.reason.contains("first failed") })
+        XCTAssertTrue(events.contains(.prepared(total: 3)))
+        XCTAssertTrue(events.contains(.itemProgress(0.75, speed: "3MiB/s", eta: "00:01")))
+        XCTAssertEqual(executor.recordedArguments.count, 3)
+        XCTAssertEqual(executor.recordedArguments[0].last, "https://www.instagram.com/p/BQ0eAlwhDrw/")
+        XCTAssertFalse(events.compactMap { event -> String? in
+            if case let .log(message) = event { return message }
+            return nil
+        }.contains { $0.contains("[下载进度]") })
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {

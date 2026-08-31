@@ -27,6 +27,9 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - TikTok 使用独立命名、标题翻译、最高像素封面和可选手动 `cookies.txt`；不读取 Chrome 或其他浏览器数据
 - 抖音支持公开 `douyin.com/video/ID` 与可由 yt-dlp 安全重定向的 `v.douyin.com` 短链
 - 抖音拥有独立 adapter、设置、图标和手动 `cookies.txt`，不复用 TikTok Cookie 或站点规则；匿名访问当前可能在 metadata 阶段要求 fresh cookies
+- Instagram 拥有独立 adapter、设置、图标和手动 `cookies.txt`；支持公开 `/reel/CODE`、`/p/CODE`、`/tv/CODE` 标准入口，并在执行前清理分享查询参数
+- Instagram 单帖视频和 carousel 中的视频复用通用多资源任务、逐项 selector、实时进度、失败继续及重复跳过；图片可识别但尚未验证下载，当前明确跳过并计入失败
+- 匿名真实 metadata 表明 Instagram 视频具有作者、日期、标题、ID 与多张封面，因此默认使用作者/日期-标题(ID)、关闭翻译，并保存最高像素封面
 - 实时下载进度、速度、ETA、成功/失败数量和失败清单
 - 完整 JSON metadata 日志
 - 5 次下载/分片重试，以及可配置的下载限速和 1–16 分片并发
@@ -47,7 +50,8 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - YouTube 需要登录、年龄验证或私有内容时，可以单独启用并选择 `cookies.txt`。
 - YouTube 若拒绝当前网络的匿名访问，请先更换可用代理；应用不会自动读取 Chrome 或其他浏览器数据。
 - X 仅接受单条 status 链接。公开帖子通常无需 Cookies；受限帖子可在 X 设置中手动选择 `cookies.txt`。
-- TikTok 与抖音均仅适配公开单视频，彼此规则和 Cookie 完全隔离；未实现 Instagram 或 Telegram。
+- TikTok 与抖音均仅适配公开单视频，彼此规则和 Cookie 完全隔离。
+- Instagram 公开 Reel、`/p/` 单帖视频与 carousel 视频通常可匿名下载；受限内容仅可手动选择 Instagram 专属 Netscape `cookies.txt`，不会读取浏览器认证。`/tv/` 路由已覆盖，但公开旧样例当前受平台空媒体响应限制。未实现 Telegram。
 - 抖音当前匿名实测被风控阻止，若遇到相同错误可在抖音设置中手动选择 Netscape 格式 `cookies.txt`；应用不会读取浏览器 Cookie，且本次未持有用户 Cookie 验证降级下载成功。
 
 ## 构建与测试

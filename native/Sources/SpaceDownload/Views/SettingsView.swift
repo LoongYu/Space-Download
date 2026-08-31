@@ -400,6 +400,21 @@ private struct SiteSettingsPage: View {
                     .font(.caption)
                     .foregroundStyle(AppTheme.subdued)
             }
+        case .instagram:
+            SettingsCard(title: "Instagram 帖子") {
+                Text("支持公开 Reel、单帖视频，以及 carousel 多媒体帖中可识别的视频资源。图片会被识别，但当前不会下载。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                cookieSettings(
+                    enabled: $settingsStore.settings.sites.instagram.useCookies,
+                    fileURL: appState.instagramCookiesFileURL,
+                    siteID: .instagram
+                )
+                Text("仅使用你手动选择的 Instagram cookies.txt；不会读取 Chrome 或其他浏览器认证。分享链接中的查询参数会在执行前安全清理。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+            }
         }
     }
 
@@ -468,6 +483,7 @@ private struct SiteSettingsPage: View {
         case .x: update(&settingsStore.settings.sites.x.media)
         case .tiktok: update(&settingsStore.settings.sites.tiktok.media)
         case .douyin: update(&settingsStore.settings.sites.douyin.media)
+        case .instagram: update(&settingsStore.settings.sites.instagram.media)
         }
     }
 }
@@ -491,7 +507,7 @@ struct SiteIconView: View {
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\([.x, .tiktok, .douyin].contains(siteID) ? "svg" : "png")")
+            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\([.x, .tiktok, .douyin, .instagram].contains(siteID) ? "svg" : "png")")
         guard let image = NSImage(contentsOf: bundledURL ?? sourceURL) else {
             return NSImage(systemSymbolName: "globe", accessibilityDescription: siteID.displayName)
                 ?? NSImage()

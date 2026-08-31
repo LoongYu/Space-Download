@@ -7,7 +7,8 @@ struct YtDlpCommandBuilder {
     let tools: ToolLocations
 
     func metadataArguments(for url: URL, request: DownloadRequest) -> [String] {
-        commonNetworkArguments(for: url, phase: .metadata, request: request) + [
+        let url = SiteRegistry.adapter(for: url).canonicalURL(url)
+        return commonNetworkArguments(for: url, phase: .metadata, request: request) + [
             "--no-playlist",
             "--skip-download",
             "--dump-single-json",
@@ -16,7 +17,8 @@ struct YtDlpCommandBuilder {
     }
 
     func resourceDiscoveryArguments(for url: URL, request: DownloadRequest) -> [String] {
-        commonNetworkArguments(for: url, phase: .metadata, request: request) + [
+        let url = SiteRegistry.adapter(for: url).canonicalURL(url)
+        return commonNetworkArguments(for: url, phase: .metadata, request: request) + [
             "--yes-playlist",
             "--skip-download",
             "--dump-single-json",
@@ -26,6 +28,7 @@ struct YtDlpCommandBuilder {
 
     func collectionArguments(for url: URL, request: DownloadRequest) -> [String] {
         let adapter = SiteRegistry.adapter(for: url)
+        let url = adapter.canonicalURL(url)
         return commonNetworkArguments(for: url, phase: .collection, request: request)
             + adapter.collectionArguments(for: url, request: request) + [
             "--flat-playlist",
@@ -43,6 +46,7 @@ struct YtDlpCommandBuilder {
     ) -> [String] {
         let settings = request.settings
         let adapter = SiteRegistry.adapter(for: item.url)
+        let canonicalURL = adapter.canonicalURL(item.url)
         let mediaSettings = settings.mediaSettings(for: adapter.siteID)
         let concurrentFragments = min(max(settings.common.concurrentFragments, 1), 16)
         var arguments = commonNetworkArguments(for: item.url, phase: .download, request: request)
@@ -83,7 +87,7 @@ struct YtDlpCommandBuilder {
                 translatedTitle.replacingOccurrences(of: "\\", with: "\\\\"),
             ]
         }
-        arguments.append(item.url.absoluteString)
+        arguments.append(canonicalURL.absoluteString)
         return arguments
     }
 

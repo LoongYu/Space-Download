@@ -5,6 +5,17 @@ import XCTest
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testInstagramRequiresItsOwnManualCookiesAndDoesNotReuseOtherSites() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let appState = AppState(settingsStore: SettingsStore(fileURL: directory.appendingPathComponent("settings.json")))
+        appState.linkText = "https://www.instagram.com/reel/Chunk8-jurw/?igsh=share"
+        appState.settingsStore.settings.sites.instagram.useCookies = true
+        appState.xCookiesFileURL = URL(fileURLWithPath: "/tmp/x.txt")
+        XCTAssertEqual(appState.detectedSiteLabel, "Instagram")
+        appState.startDownload()
+        XCTAssertEqual(appState.validationMessage, "Instagram 已启用 Cookies，请先选择 cookies.txt")
+    }
     func testDouyinRequiresItsOwnManualCookiesAndDoesNotReuseTikTok() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

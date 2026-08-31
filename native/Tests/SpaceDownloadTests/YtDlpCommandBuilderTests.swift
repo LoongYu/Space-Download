@@ -197,4 +197,28 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         let output = try XCTUnwrap(arguments.firstIndex(of: "--output"))
         XCTAssertEqual(arguments[output + 1], "%(upload_date)s-%(title)s(%(id)s).%(ext)s")
     }
+
+    func testBuildsInstagramSelectorWithCanonicalURLAndOnlyInstagramCookies() throws {
+        let url = try XCTUnwrap(URL(string: "https://instagram.com/p/BQ0eAlwhDrw/?igsh=share&utm_source=x"))
+        let metadata = try JSONSerialization.data(withJSONObject: ["id": "BQ0dTpOhuHT", "ext": "mp4"])
+        let item = DownloadItem(url: url, title: "Video", page: nil, pageIndex: 2, resource: MediaResourceTask(
+            stableID: "BQ0dTpOhuHT", kind: .video, selector: 2, metadataJSON: metadata
+        ))
+        let cookies = URL(fileURLWithPath: "/tmp/instagram.txt")
+        let request = DownloadRequest(sourceURLs: [url], settings: .defaults, credentials: DownloadCredentials(
+            cookiesFileURL: URL(fileURLWithPath: "/tmp/pornhub.txt"),
+            xCookiesFileURL: URL(fileURLWithPath: "/tmp/x.txt"),
+            instagramCookiesFileURL: cookies
+        ), selectedPages: nil)
+        let arguments = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"), ffmpeg: nil
+        )).downloadArguments(for: item, request: request, temporaryDirectory: URL(fileURLWithPath: "/tmp/work"))
+
+        XCTAssertEqual(arguments.last, "https://www.instagram.com/p/BQ0eAlwhDrw/")
+        XCTAssertEqual(arguments[try XCTUnwrap(arguments.firstIndex(of: "--playlist-items")) + 1], "2")
+        XCTAssertTrue(arguments.contains(cookies.path))
+        XCTAssertFalse(arguments.contains("/tmp/pornhub.txt"))
+        XCTAssertFalse(arguments.contains("/tmp/x.txt"))
+        XCTAssertFalse(arguments.contains("--cookies-from-browser"))
+    }
 }

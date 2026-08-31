@@ -100,7 +100,7 @@ final class DownloadEngine {
                         preparationFailures.append(DownloadFailure(
                             title: "\(adapter.displayName) 图片资源 \(resource.stableID)",
                             url: sourceURL,
-                            reason: "当前版本尚未验证 X 图片下载，因此未宣称或执行图片支持"
+                            reason: "当前版本尚未验证 \(adapter.displayName) 图片下载，因此未宣称或执行图片支持"
                         ))
                         continue
                     }
@@ -367,7 +367,8 @@ final class DownloadEngine {
                     youtubeCookiesFileURL: request.credentials.youtubeCookiesFileURL,
                     xCookiesFileURL: request.credentials.xCookiesFileURL,
                     tiktokCookiesFileURL: request.credentials.tiktokCookiesFileURL,
-                    douyinCookiesFileURL: request.credentials.douyinCookiesFileURL
+                    douyinCookiesFileURL: request.credentials.douyinCookiesFileURL,
+                    instagramCookiesFileURL: request.credentials.instagramCookiesFileURL
                 ),
                 selectedPages: request.selectedPages,
                 youtubePlaylistItems: request.youtubePlaylistItems

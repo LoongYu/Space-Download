@@ -23,7 +23,7 @@ struct XAdapter: SiteAdapter {
             guard let id = entry["id"] as? String, !id.isEmpty,
                   let data = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys])
             else { return nil }
-            let kind = Self.kind(from: entry)
+            let kind = socialMediaResourceKind(from: entry)
             return MediaResourceTask(
                 stableID: id,
                 kind: kind,
@@ -33,15 +33,16 @@ struct XAdapter: SiteAdapter {
         }
     }
 
-    private static func kind(from metadata: [String: Any]) -> MediaResourceTask.Kind {
-        let extensionName = (metadata["ext"] as? String)?.lowercased()
-        let format = (metadata["format"] as? String)?.lowercased() ?? ""
-        if extensionName == "gif" || format.contains("gif") || metadata["is_animated"] as? Bool == true {
-            return .animatedGIF
-        }
-        if ["jpg", "jpeg", "png", "webp", "avif"].contains(extensionName ?? "") {
-            return .image
-        }
-        return .video
+}
+
+func socialMediaResourceKind(from metadata: [String: Any]) -> MediaResourceTask.Kind {
+    let extensionName = (metadata["ext"] as? String)?.lowercased()
+    let format = (metadata["format"] as? String)?.lowercased() ?? ""
+    if extensionName == "gif" || format.contains("gif") || metadata["is_animated"] as? Bool == true {
+        return .animatedGIF
     }
+    if ["jpg", "jpeg", "png", "webp", "avif"].contains(extensionName ?? "") {
+        return .image
+    }
+    return .video
 }

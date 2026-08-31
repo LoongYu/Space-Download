@@ -13,6 +13,7 @@ final class AppState: ObservableObject {
     @Published var xCookiesFileURL: URL?
     @Published var tiktokCookiesFileURL: URL?
     @Published var douyinCookiesFileURL: URL?
+    @Published var instagramCookiesFileURL: URL?
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
@@ -72,6 +73,7 @@ final class AppState: ObservableObject {
         case .x: xCookiesFileURL = panel.url
         case .tiktok: tiktokCookiesFileURL = panel.url
         case .douyin: douyinCookiesFileURL = panel.url
+        case .instagram: instagramCookiesFileURL = panel.url
         }
     }
 
@@ -116,6 +118,12 @@ final class AppState: ObservableObject {
             validationMessage = "抖音已启用 Cookies，请先选择 cookies.txt"
             return
         }
+        if detectedSites.contains(.instagram),
+           settingsStore.settings.sites.instagram.useCookies,
+           instagramCookiesFileURL == nil {
+            validationMessage = "Instagram 已启用 Cookies，请先选择 cookies.txt"
+            return
+        }
 
         let selectedPages: [Int]?
         if detectedSites.contains(.pornhub) {
@@ -157,7 +165,8 @@ final class AppState: ObservableObject {
                 youtubeCookiesFileURL: youtubeCookiesFileURL,
                 xCookiesFileURL: xCookiesFileURL,
                 tiktokCookiesFileURL: tiktokCookiesFileURL,
-                douyinCookiesFileURL: douyinCookiesFileURL
+                douyinCookiesFileURL: douyinCookiesFileURL,
+                instagramCookiesFileURL: instagramCookiesFileURL
             ),
             selectedPages: selectedPages,
             youtubePlaylistItems: youtubePlaylistItems
