@@ -27,7 +27,10 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertTrue(summary.failures.isEmpty)
         XCTAssertTrue(events.contains(.itemProgress(0.5, speed: "1MiB/s", eta: "00:05")))
         XCTAssertTrue(events.contains(.log("[下载] [download] Destination: /tmp/video.mp4")))
-        XCTAssertTrue(events.contains(.log("[下载进度] 50.0% | 速度 1MiB/s | 剩余 00:05")))
+        XCTAssertFalse(events.contains { event in
+            if case let .log(message) = event { return message.contains("[下载进度]") }
+            return false
+        })
         XCTAssertTrue(events.contains(.log("[下载] 文件已写入：/tmp/video.mp4")))
         XCTAssertTrue(events.contains(.itemSucceeded(title: "Video", url: url)))
     }

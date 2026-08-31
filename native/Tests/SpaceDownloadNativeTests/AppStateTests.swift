@@ -76,7 +76,7 @@ final class AppStateTests: XCTestCase {
 
         XCTAssertGreaterThan(refreshCount, 5)
         XCTAssertEqual(appState.taskCoordinator.progress, 1)
-        XCTAssertTrue(appState.taskCoordinator.logs.contains { $0.contains("[下载进度] 50.0%") })
+        XCTAssertFalse(appState.taskCoordinator.logs.contains { $0.contains("[下载进度]") })
         withExtendedLifetime(cancellable) {}
     }
 

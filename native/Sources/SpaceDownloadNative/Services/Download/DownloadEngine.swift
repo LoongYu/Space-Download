@@ -186,7 +186,6 @@ final class DownloadEngine {
                     switch parsed {
                     case let .progress(progress):
                         onEvent(.itemProgress(progress.fraction, speed: progress.speed, eta: progress.eta))
-                        onEvent(.log(progressLog(progress)))
                     case let .result(result):
                         resultInfo = result
                         if let path = result["filepath"] ?? result["_filename"] {
@@ -320,13 +319,6 @@ private func liveToolMessage(_ line: String, phase: String) -> String? {
     guard !value.isEmpty else { return nil }
     if value.first == "{", value.last == "}" { return nil }
     return "[\(phase)] \(value)"
-}
-
-private func progressLog(_ progress: ParsedProgress) -> String {
-    let percentage = String(format: "%.1f%%", progress.fraction * 100)
-    let speed = progress.speed.isEmpty ? "--" : progress.speed
-    let eta = progress.eta.isEmpty ? "--" : progress.eta
-    return "[下载进度] \(percentage) | 速度 \(speed) | 剩余 \(eta)"
 }
 
 private func deduplicated(_ items: [DownloadItem]) -> [DownloadItem] {
