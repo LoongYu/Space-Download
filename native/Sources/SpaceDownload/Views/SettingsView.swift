@@ -31,7 +31,7 @@ struct SettingsView: View {
             Divider().overlay(AppTheme.border)
             detail
         }
-        .frame(width: 960, height: 680)
+        .frame(width: 960, height: 840)
         .background(AppTheme.background)
         .foregroundStyle(.white)
         .preferredColorScheme(.dark)
@@ -99,13 +99,13 @@ private struct GlobalSettingsPage: View {
             title: "全局设置",
             subtitle: "所有站点共用的下载与网络参数"
         ) {
-            HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 12) {
                 SettingsCard(title: "下载") {
                     SettingsRow(title: "保存目录", detail: "所有任务的默认保存位置") {
                         HStack(spacing: 7) {
                             TextField("保存目录", text: $settingsStore.settings.common.downloadPath)
                                 .settingField()
-                                .frame(width: 142)
+                                .frame(width: 260)
                             Button("浏览") { appState.chooseDownloadDirectory() }
                                 .buttonStyle(OrangeButtonStyle(compact: true))
                                 .fixedSize(horizontal: true, vertical: false)
@@ -127,41 +127,39 @@ private struct GlobalSettingsPage: View {
                     }
                 }
 
-                VStack(spacing: 14) {
-                    SettingsCard(title: "性能") {
-                        SettingsRow(title: "下载限速", detail: "不限速时使用当前网络可用带宽") {
-                            SettingsPicker(
-                                selection: $settingsStore.settings.common.rateLimit,
-                                values: DownloadRateLimit.allCases
-                            )
-                        }
-                        SettingsDivider()
-                        SettingsRow(title: "分片并发数", detail: "单个视频同时下载的分片数量，范围 1–16") {
-                            Stepper(
-                                value: $settingsStore.settings.common.concurrentFragments,
-                                in: 1...16
-                            ) {
-                                Text("\(settingsStore.settings.common.concurrentFragments)")
-                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                    .frame(width: 28)
-                            }
-                            .frame(width: 112)
-                        }
+                SettingsCard(title: "性能") {
+                    SettingsRow(title: "下载限速", detail: "不限速时使用当前网络可用带宽") {
+                        SettingsPicker(
+                            selection: $settingsStore.settings.common.rateLimit,
+                            values: DownloadRateLimit.allCases
+                        )
                     }
-
-                    SettingsCard(title: "网络") {
-                        SettingsRow(title: "代理", detail: "所有站点统一使用的 HTTP 或 SOCKS 代理") {
-                            Toggle("", isOn: $settingsStore.settings.common.useProxy)
-                                .labelsHidden()
-                                .tint(AppTheme.orange)
+                    SettingsDivider()
+                    SettingsRow(title: "分片并发数", detail: "单个视频同时下载的分片数量，范围 1–16") {
+                        Stepper(
+                            value: $settingsStore.settings.common.concurrentFragments,
+                            in: 1...16
+                        ) {
+                            Text("\(settingsStore.settings.common.concurrentFragments)")
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                .frame(width: 28)
                         }
-                        if settingsStore.settings.common.useProxy {
-                            SettingsDivider()
-                            SettingsRow(title: "代理地址", detail: "例如 http://127.0.0.1:7890") {
-                                TextField("代理地址", text: $settingsStore.settings.common.proxyURL)
-                                    .settingField()
-                                    .frame(width: 175)
-                            }
+                        .frame(width: 112)
+                    }
+                }
+
+                SettingsCard(title: "网络") {
+                    SettingsRow(title: "代理", detail: "所有站点统一使用的 HTTP 或 SOCKS 代理") {
+                        Toggle("", isOn: $settingsStore.settings.common.useProxy)
+                            .labelsHidden()
+                            .tint(AppTheme.orange)
+                    }
+                    if settingsStore.settings.common.useProxy {
+                        SettingsDivider()
+                        SettingsRow(title: "代理地址", detail: "例如 http://127.0.0.1:7890") {
+                            TextField("代理地址", text: $settingsStore.settings.common.proxyURL)
+                                .settingField()
+                                .frame(width: 280)
                         }
                     }
                 }
@@ -187,11 +185,9 @@ private struct SiteSettingsPage: View {
             subtitle: "每个站点独立保存命名、采集和认证规则"
         ) {
             siteSelector
-            HStack(alignment: .top, spacing: 14) {
+            VStack(spacing: 12) {
                 mediaSettings
-                    .frame(width: 330, alignment: .top)
                 siteSpecificSettings
-                    .frame(maxWidth: .infinity, alignment: .top)
             }
 
             if let error = settingsStore.persistenceError {
@@ -254,7 +250,7 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "自定义模板", detail: "使用 yt-dlp 模板字段") {
                     TextField("自定义模板", text: customTemplate)
                         .settingField()
-                        .frame(width: 168)
+                        .frame(width: 260)
                 }
             } else if let rule = filenameTemplate.wrappedValue.rule {
                 Text(rule)
@@ -287,19 +283,19 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "批量网页分页", detail: "例如 1-3,5；留空下载全部页面") {
                     TextField("1-3,5", text: $settingsStore.settings.sites.pornhub.pageSelection)
                         .settingField()
-                        .frame(width: 180)
+                        .frame(width: 240)
                 }
                 SettingsDivider()
                 SettingsRow(title: "账号", detail: "仅用于需要登录的内容") {
                     TextField("账号", text: $settingsStore.settings.sites.pornhub.username)
                         .settingField()
-                        .frame(width: 180)
+                        .frame(width: 240)
                 }
                 SettingsDivider()
                 SettingsRow(title: "密码", detail: "仅保存在当前运行会话") {
                     SecureField("密码", text: $appState.password)
                         .settingField()
-                        .frame(width: 180)
+                        .frame(width: 240)
                 }
                 cookieSettings(
                     enabled: $settingsStore.settings.sites.pornhub.useCookies,
@@ -312,7 +308,7 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "播放列表序号", detail: "例如 1-20,25；留空下载全部视频") {
                     TextField("1-20,25", text: $settingsStore.settings.sites.youtube.playlistSelection)
                         .settingField()
-                        .frame(width: 180)
+                        .frame(width: 240)
                 }
                 SettingsDivider()
                 SettingsRow(title: "频道内容范围", detail: "频道链接需要采集的内容类型") {
@@ -343,7 +339,7 @@ private struct SiteSettingsPage: View {
                             text: $settingsStore.settings.sites.youtube.subtitleLanguages
                         )
                         .settingField()
-                        .frame(width: 180)
+                        .frame(width: 240)
                     }
                 }
                 SettingsDivider()
@@ -642,7 +638,7 @@ private struct SettingsPicker<Value>: View where Value: Hashable & Identifiable 
         }
         .labelsHidden()
         .pickerStyle(.menu)
-        .frame(width: 165, alignment: .trailing)
+        .frame(width: 220, alignment: .trailing)
     }
 }
 

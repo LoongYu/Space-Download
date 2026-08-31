@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class InterfaceRenderTests: XCTestCase {
-    private let settingsSize = NSSize(width: 960, height: 680)
+    private let settingsSize = NSSize(width: 960, height: 840)
 
     func testSiteMenuIconsUseFixedLogicalSize() {
         for site in SiteID.allCases {
