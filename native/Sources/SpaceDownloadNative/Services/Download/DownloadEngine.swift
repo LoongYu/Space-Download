@@ -4,6 +4,7 @@ final class DownloadEngine {
     private let executor: ProcessExecuting
     private let translator: TitleTranslating
     private let thumbnailService: ThumbnailDownloading
+    private let metadataLogger: MetadataDebugLogging
     private let tools: ToolLocations
     private let cancellationLock = NSLock()
     private var cancelled = false
@@ -12,12 +13,14 @@ final class DownloadEngine {
         tools: ToolLocations,
         executor: ProcessExecuting = ProcessExecutor(),
         translator: TitleTranslating = GoogleTitleTranslator(),
-        thumbnailService: ThumbnailDownloading = ThumbnailService()
+        thumbnailService: ThumbnailDownloading = ThumbnailService(),
+        metadataLogger: MetadataDebugLogging = MetadataDebugLogger()
     ) {
         self.tools = tools
         self.executor = executor
         self.translator = translator
         self.thumbnailService = thumbnailService
+        self.metadataLogger = metadataLogger
     }
 
     func cancel() {
@@ -163,7 +166,16 @@ final class DownloadEngine {
             if let title = metadata["title"] as? String, !title.isEmpty {
                 item = DownloadItem(url: item.url, title: title, page: item.page, pageIndex: item.pageIndex)
             }
-            onEvent(.log(metadataLog(metadata, item: item, position: offset + 1)))
+            let metadataLabel = metadataLabel(item: item, position: offset + 1)
+            onEvent(.log(metadataSummaryLog(metadata, label: metadataLabel)))
+            do {
+                let logURL = try metadataLogger.write(metadata: metadata, label: metadataLabel)
+                if logURL.path != "/dev/null" {
+                    onEvent(.log("完整 metadata 已保存：\(logURL.path)"))
+                }
+            } catch {
+                onEvent(.log("WARN: 完整 metadata 保存失败：\(error.localizedDescription)"))
+            }
 
             let translatedTitle = effectiveRequest.settings.translateTitle
                 ? await translator.translate(item.title)
@@ -298,20 +310,26 @@ private func failureReason(from execution: ProcessExecutionResult) -> String {
         ?? "yt-dlp 退出码 \(execution.exitCode)"
 }
 
-private func metadataLog(_ metadata: [String: Any], item: DownloadItem, position: Int) -> String {
-    let label: String
+private func metadataLabel(item: DownloadItem, position: Int) -> String {
     if let page = item.page, let pageIndex = item.pageIndex {
-        label = "JSON metadata [第 \(page) 页 / 第 \(pageIndex) 个视频]"
-    } else {
-        label = "JSON metadata [第 \(position) 个视频]"
+        return "第 \(page) 页 / 第 \(pageIndex) 个视频"
     }
-    guard JSONSerialization.isValidJSONObject(metadata),
-          let data = try? JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys]),
-          let text = String(data: data, encoding: .utf8)
-    else {
-        return "\(label): <empty>"
-    }
-    return "\(label):\n\(text)"
+    return "第 \(position) 个视频"
+}
+
+private func metadataSummaryLog(_ metadata: [String: Any], label: String) -> String {
+    let title = metadata["title"] as? String ?? "未知标题"
+    let id = metadata["id"] as? String ?? "--"
+    let uploader = metadata["uploader"] as? String ?? metadata["channel"] as? String ?? "--"
+    let duration = metadata["duration_string"] as? String
+        ?? (metadata["duration"] as? NSNumber).map { "\($0.intValue) 秒" }
+        ?? "--"
+    let resolution = metadata["resolution"] as? String
+        ?? (metadata["height"] as? NSNumber).map { "\($0.intValue)p" }
+        ?? "--"
+    let format = metadata["format_id"] as? String ?? metadata["ext"] as? String ?? "--"
+    let source = metadata["webpage_url"] as? String ?? metadata["original_url"] as? String ?? "--"
+    return "视频信息 [\(label)]：标题 \(title) | ID \(id) | 作者 \(uploader) | 时长 \(duration) | 清晰度 \(resolution) | 格式 \(format)\n来源：\(source)"
 }
 
 private func liveToolMessage(_ line: String, phase: String) -> String? {

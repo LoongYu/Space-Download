@@ -94,7 +94,8 @@ func makeEngine(executor: ProcessExecuting) -> DownloadEngine {
         tools: ToolLocations(ytDlp: URL(fileURLWithPath: "/usr/bin/true"), ffmpeg: nil),
         executor: executor,
         translator: IdentityTitleTranslator(),
-        thumbnailService: RejectingThumbnailService()
+        thumbnailService: RejectingThumbnailService(),
+        metadataLogger: DisabledMetadataDebugLogger()
     )
 }
 

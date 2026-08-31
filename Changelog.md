@@ -36,6 +36,8 @@
 - 显式覆盖 `yt-dlp --print` 的 quiet 副作用，确保真实下载持续产生进度事件
 - 修复嵌套 `DownloadTaskCoordinator` 状态未转发给 SwiftUI，导致后台下载正常但前端进度和日志不刷新的问题
 - 运行日志不再重复打印下载百分比，实时进度仅保留在进度区域
+- 界面日志将完整 JSON metadata 精简为标题、ID、作者、时长、清晰度、格式和来源摘要
+- 完整 metadata 改为追加保存到 `~/Library/Logs/SpaceDownload/metadata.log`，供问题排查使用
 
 ## 2026033101 (2026-03-31)
 

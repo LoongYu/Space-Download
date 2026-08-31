@@ -91,7 +91,8 @@ final class DownloadEngineTests: XCTestCase {
             tools: ToolLocations(ytDlp: URL(fileURLWithPath: "/usr/bin/true"), ffmpeg: nil),
             executor: executor,
             translator: IdentityTitleTranslator(),
-            thumbnailService: thumbnail
+            thumbnailService: thumbnail,
+            metadataLogger: DisabledMetadataDebugLogger()
         )
         engine.prepareForExecution()
         var settings = DownloadSettings.defaults

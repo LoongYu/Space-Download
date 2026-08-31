@@ -65,7 +65,8 @@ final class LiveYtDlpIntegrationTests: XCTestCase {
         let coordinator = DownloadTaskCoordinator(engine: DownloadEngine(
             tools: tools,
             translator: IdentityTitleTranslator(),
-            thumbnailService: RejectingThumbnailService()
+            thumbnailService: RejectingThumbnailService(),
+            metadataLogger: MetadataDebugLogger(directoryURL: outputDirectory.appendingPathComponent("logs"))
         ))
         let appState = AppState(
             settingsStore: SettingsStore(fileURL: outputDirectory.appendingPathComponent("settings.json")),
@@ -93,7 +94,11 @@ final class LiveYtDlpIntegrationTests: XCTestCase {
 
         XCTAssertGreaterThan(observedProgress, 0)
         XCTAssertTrue(coordinator.status == .idle || coordinator.status == .completed)
-        XCTAssertTrue(coordinator.logs.contains { $0.contains("JSON metadata") })
+        XCTAssertTrue(coordinator.logs.contains { $0.contains("视频信息") })
+        XCTAssertFalse(coordinator.logs.contains { $0.contains("\"formats\"") })
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: outputDirectory.appendingPathComponent("logs/metadata.log").path
+        ))
         XCTAssertFalse(coordinator.logs.contains { $0.contains("[下载进度]") })
         XCTAssertGreaterThan(frontendRefreshCount, 5)
         withExtendedLifetime(cancellable) {}
