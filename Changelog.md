@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3 (2026-08-31)
+
+### 移除浏览器认证
+
+- 移除 YouTube Chrome 浏览器认证入口和 `--cookies-from-browser` 参数
+- 应用不再读取任何浏览器会话数据
+- YouTube 保留默认免认证下载，以及用户主动选择的独立 `cookies.txt` 方式
+
 ## 0.3.1 (2026-08-31)
 
 ### YouTube 无 Cookies 下载修复
