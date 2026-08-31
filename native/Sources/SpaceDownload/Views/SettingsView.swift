@@ -506,15 +506,30 @@ struct SiteIconView: View {
     var size: CGFloat = 22
 
     var body: some View {
-        Image(nsImage: siteImage)
-            .resizable()
+        Image(nsImage: renderedImage)
             .interpolation(.high)
-            .scaledToFit()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
     }
 
-    private var siteImage: NSImage {
+    // SwiftUI Menu converts labels to NSMenuItem and uses the NSImage's
+    // intrinsic size, ignoring the SwiftUI frame. Pre-rendering keeps menu
+    // icons at the requested point size instead of their source dimensions.
+    var renderedImage: NSImage {
+        let source = sourceImage
+        let targetSize = NSSize(width: size, height: size)
+        return NSImage(size: targetSize, flipped: false) { rect in
+            source.draw(
+                in: rect,
+                from: NSRect(origin: .zero, size: source.size),
+                operation: .sourceOver,
+                fraction: 1
+            )
+            return true
+        }
+    }
+
+    private var sourceImage: NSImage {
         let bundledURL = Bundle.main.url(forResource: siteID.iconResourceName, withExtension: "png", subdirectory: "SiteIcons")
             ?? Bundle.main.url(forResource: siteID.iconResourceName, withExtension: "svg", subdirectory: "SiteIcons")
         let sourceURL = URL(fileURLWithPath: #filePath)

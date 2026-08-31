@@ -5,6 +5,13 @@ import XCTest
 
 @MainActor
 final class InterfaceRenderTests: XCTestCase {
+    func testSiteMenuIconsUseFixedLogicalSize() {
+        for site in SiteID.allCases {
+            let image = SiteIconView(siteID: site, size: 16).renderedImage
+            XCTAssertEqual(image.size, NSSize(width: 16, height: 16), "Unexpected menu icon size for \(site)")
+        }
+    }
+
     func testDefaultWindowLayoutRendersAtExpectedSize() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
