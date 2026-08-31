@@ -1,5 +1,5 @@
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class YtDlpOutputParserTests: XCTestCase {
     func testParsesProgressLine() {

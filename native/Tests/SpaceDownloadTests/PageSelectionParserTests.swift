@@ -1,5 +1,5 @@
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class PageSelectionParserTests: XCTestCase {
     func testParsesRangesAndIndividualPages() throws {

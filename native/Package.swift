@@ -3,22 +3,22 @@
 import PackageDescription
 
 let package = Package(
-    name: "SpaceDownloadNative",
+    name: "SpaceDownload",
     platforms: [
         .macOS(.v14),
     ],
     products: [
-        .executable(name: "SpaceDownloadNative", targets: ["SpaceDownloadNative"]),
+        .executable(name: "SpaceDownload", targets: ["SpaceDownload"]),
     ],
     targets: [
         .executableTarget(
-            name: "SpaceDownloadNative",
-            path: "Sources/SpaceDownloadNative"
+            name: "SpaceDownload",
+            path: "Sources/SpaceDownload"
         ),
         .testTarget(
-            name: "SpaceDownloadNativeTests",
-            dependencies: ["SpaceDownloadNative"],
-            path: "Tests/SpaceDownloadNativeTests"
+            name: "SpaceDownloadTests",
+            dependencies: ["SpaceDownload"],
+            path: "Tests/SpaceDownloadTests"
         ),
     ],
     swiftLanguageVersions: [.v5]

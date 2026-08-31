@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 @MainActor
 final class InterfaceRenderTests: XCTestCase {

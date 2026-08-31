@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR=${0:A:h}
 BUILD_DIR="$SCRIPT_DIR/.build"
-APP_DIR="$SCRIPT_DIR/dist/SpaceDownloadNative.app"
+APP_DIR="$SCRIPT_DIR/dist/SpaceDownload.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 ICON_SOURCE="$SCRIPT_DIR/Resources/SpaceDownload.icon"
 
@@ -19,7 +19,7 @@ CLANG_MODULE_CACHE_PATH="$BUILD_DIR/module-cache" swift build \
 
 rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
-cp "$BUILD_DIR/release/SpaceDownloadNative" "$CONTENTS_DIR/MacOS/SpaceDownloadNative"
+cp "$BUILD_DIR/release/SpaceDownload" "$CONTENTS_DIR/MacOS/SpaceDownload"
 cp "$SCRIPT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
 xcrun actool "$ICON_SOURCE" \
     --compile "$CONTENTS_DIR/Resources" \

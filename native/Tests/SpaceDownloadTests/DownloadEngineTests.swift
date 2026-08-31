@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class DownloadEngineTests: XCTestCase {
     func testSingleVideoSuccessEmitsProgressAndCompletes() async throws {

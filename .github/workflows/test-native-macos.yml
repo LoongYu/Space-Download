@@ -1,4 +1,4 @@
-name: Test Native macOS
+name: Test SpaceDownload macOS
 
 on:
   push:
@@ -29,5 +29,5 @@ jobs:
         run: ./build_app.sh
       - name: Verify bundled engine
         run: |
-          test -x "dist/SpaceDownloadNative.app/Contents/Resources/yt-dlp"
-          "dist/SpaceDownloadNative.app/Contents/Resources/yt-dlp" --version
+          test -x "dist/SpaceDownload.app/Contents/Resources/yt-dlp"
+          "dist/SpaceDownload.app/Contents/Resources/yt-dlp" --version

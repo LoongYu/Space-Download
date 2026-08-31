@@ -31,7 +31,7 @@ final class DownloadTaskCoordinator: ObservableObject {
     @Published private(set) var currentTitle = ""
     @Published private(set) var speed = "--"
     @Published private(set) var eta = "--"
-    @Published private(set) var logs = ["SpaceDownload Native 已就绪"]
+    @Published private(set) var logs = ["SpaceDownload 已就绪"]
     @Published private(set) var failures: [DownloadFailure] = []
     @Published private(set) var pendingURLs: [URL] = []
 

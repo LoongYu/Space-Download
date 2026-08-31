@@ -40,6 +40,7 @@
 - 完整 metadata 改为追加保存到 `~/Library/Logs/SpaceDownload/metadata.log`，供问题排查使用
 - 下载前按文件名中的视频 ID 递归检查保存目录，已存在的视频直接提示并跳过，不重复下载
 - 应用图标改为固定的 Icon Composer 单层资源，构建时统一生成 `Assets.car` 和兼容 `.icns`，避免系统重复套用背景
+- 应用、可执行文件、安装包、DMG、日志及 CI 构建产物统一显示为 `SpaceDownload`
 
 ## 2026033101 (2026-03-31)
 

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 @MainActor
 final class DownloadTaskCoordinatorTests: XCTestCase {

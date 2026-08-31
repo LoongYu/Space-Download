@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class LiveYtDlpIntegrationTests: XCTestCase {
     func testDownloadsLocalMediaWithRealYtDlp() async throws {

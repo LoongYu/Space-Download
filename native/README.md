@@ -1,4 +1,4 @@
-# SpaceDownload Native
+# SpaceDownload
 
 SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并存，不会覆盖旧应用。
 
@@ -33,7 +33,7 @@ swift test --disable-sandbox --build-path .build \
   --security-path .build/security
 
 ./build_app.sh
-open "dist/SpaceDownloadNative.app"
+open "dist/SpaceDownload.app"
 ```
 
 首次构建前运行 `./prepare_tools.sh`，下载官方独立版 `yt-dlp_macos`。视频合并和格式转换需要 `ffmpeg`，应用会依次在 Resources、Homebrew 和 PATH 中查找。

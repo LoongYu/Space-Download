@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class YtDlpCommandBuilderTests: XCTestCase {
     func testBuildsDownloadArgumentsFromAllSettings() throws {

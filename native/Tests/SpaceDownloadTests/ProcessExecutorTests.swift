@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import SpaceDownloadNative
+@testable import SpaceDownload
 
 final class ProcessExecutorTests: XCTestCase {
     func testStreamsAndCollectsProcessOutput() async {
