@@ -3,6 +3,14 @@ import Foundation
 struct DownloadCredentials: Equatable {
     var password = ""
     var cookiesFileURL: URL?
+    var youtubeCookiesFileURL: URL?
+
+    func cookiesFileURL(for siteID: SiteID?) -> URL? {
+        switch siteID {
+        case .youtube: youtubeCookiesFileURL
+        case .pornhub, .none: cookiesFileURL
+        }
+    }
 }
 
 struct DownloadRequest: Equatable {
@@ -10,6 +18,21 @@ struct DownloadRequest: Equatable {
     let settings: DownloadSettings
     let credentials: DownloadCredentials
     let selectedPages: [Int]?
+    let youtubePlaylistItems: [Int]?
+
+    init(
+        sourceURLs: [URL],
+        settings: DownloadSettings,
+        credentials: DownloadCredentials,
+        selectedPages: [Int]?,
+        youtubePlaylistItems: [Int]? = nil
+    ) {
+        self.sourceURLs = sourceURLs
+        self.settings = settings
+        self.credentials = credentials
+        self.selectedPages = selectedPages
+        self.youtubePlaylistItems = youtubePlaylistItems
+    }
 }
 
 struct DownloadItem: Equatable {

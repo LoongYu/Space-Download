@@ -7,7 +7,7 @@ struct YtDlpCommandBuilder {
     let tools: ToolLocations
 
     func metadataArguments(for url: URL, request: DownloadRequest) -> [String] {
-        commonNetworkArguments(for: url, request: request) + [
+        commonNetworkArguments(for: url, phase: .metadata, request: request) + [
             "--no-playlist",
             "--skip-download",
             "--dump-single-json",
@@ -16,7 +16,9 @@ struct YtDlpCommandBuilder {
     }
 
     func collectionArguments(for url: URL, request: DownloadRequest) -> [String] {
-        commonNetworkArguments(for: url, request: request) + [
+        let adapter = SiteRegistry.adapter(for: url)
+        return commonNetworkArguments(for: url, phase: .collection, request: request)
+            + adapter.collectionArguments(for: url, request: request) + [
             "--flat-playlist",
             "--skip-download",
             "--dump-single-json",
@@ -31,7 +33,8 @@ struct YtDlpCommandBuilder {
         translatedTitle: String? = nil
     ) -> [String] {
         let settings = request.settings
-        var arguments = commonNetworkArguments(for: item.url, request: request)
+        let adapter = SiteRegistry.adapter(for: item.url)
+        var arguments = commonNetworkArguments(for: item.url, phase: .download, request: request)
         arguments += [
             "--no-playlist",
             "--retries", "5",
@@ -50,6 +53,7 @@ struct YtDlpCommandBuilder {
             "--progress-template", "download:\(Self.progressPrefix)%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
             "--print", "after_move:\(Self.resultPrefix)%()j",
         ]
+        arguments += adapter.downloadArguments(for: request)
         if let ffmpeg = tools.ffmpeg {
             arguments += ["--ffmpeg-location", ffmpeg.path]
         }
@@ -60,24 +64,29 @@ struct YtDlpCommandBuilder {
         return arguments
     }
 
-    private func commonNetworkArguments(for url: URL, request: DownloadRequest) -> [String] {
+    private func commonNetworkArguments(
+        for url: URL,
+        phase: YtDlpPhase,
+        request: DownloadRequest
+    ) -> [String] {
+        let adapter = SiteRegistry.adapter(for: url)
         var arguments = [
             "--newline",
             "--no-color",
             "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
             "--add-header", "Accept-Language:en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         ]
-        if CollectionURLBuilder.isPornhub(url) {
-            arguments += ["--referer", "https://www.pornhub.com/"]
-        }
+        arguments += adapter.networkArguments(for: phase, request: request)
         if request.settings.useProxy, !request.settings.proxyURL.isEmpty {
             arguments += ["--proxy", request.settings.proxyURL]
         }
-        if !request.settings.username.isEmpty, !request.credentials.password.isEmpty {
+        if adapter.siteID == .pornhub,
+           !request.settings.username.isEmpty,
+           !request.credentials.password.isEmpty {
             arguments += ["--username", request.settings.username]
             arguments += ["--password", request.credentials.password]
         }
-        if let cookieURL = request.credentials.cookiesFileURL {
+        if let cookieURL = request.credentials.cookiesFileURL(for: adapter.siteID) {
             arguments += ["--cookies", cookieURL.path]
         }
         return arguments

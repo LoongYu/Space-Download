@@ -13,6 +13,10 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - 内置官方独立版 `yt-dlp_macos`，也支持 Homebrew/PATH 回退
 - 单链接、多链接和列表逐项下载
 - Pornhub 频道、用户、模特等列表按网页页码下载
+- 独立站点适配器架构，Pornhub 与 YouTube 设置和下载规则互不混用
+- YouTube 单视频、播放列表和频道下载
+- YouTube 播放列表序号筛选，以及频道视频、Shorts、直播和全部内容范围筛选
+- YouTube 独立 Cookies、字幕语言、编码偏好和批量请求间隔设置
 - 实时下载进度、速度、ETA、成功/失败数量和失败清单
 - 完整 JSON metadata 日志
 - 5 次下载/分片重试和 8 路分片并发
@@ -22,6 +26,15 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - 固定使用单层 macOS 自适应图标，不再因构建环境切换为双层图标
 
 密码和 Cookies 文件路径不会写入设置文件。
+
+## 站点设置
+
+左侧“站点设置”默认使用自动识别，粘贴链接后会切换到对应站点的配置。也可以手动选择站点，提前修改该站点参数。
+
+- Pornhub 的“批量网页分页”按列表页面的页码筛选，例如 `1-3,5`。
+- YouTube 的“播放列表序号”按播放列表中的视频顺序筛选，例如 `1-20,25`。
+- YouTube 频道链接可以选择视频、Shorts、直播或全部内容。
+- YouTube 需要登录、年龄验证或私有内容时，可以单独启用并选择 `cookies.txt`。
 
 ## 构建与测试
 

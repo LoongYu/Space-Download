@@ -70,7 +70,7 @@ struct MainDownloadView: View {
                     .disabled(appState.taskCoordinator.status != .running)
 
                 Spacer()
-                Text("已识别 \(appState.parsedLinks.count) 个链接")
+                Text("\(appState.detectedSiteLabel)  ·  已识别 \(appState.parsedLinks.count) 个链接")
                     .font(.caption)
                     .foregroundStyle(AppTheme.subdued)
             }

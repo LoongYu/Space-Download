@@ -37,6 +37,14 @@ final class SettingsStoreTests: XCTestCase {
         store.settings.outputFormat = .webm
         let reloaded = SettingsStore(fileURL: fileURL)
         XCTAssertEqual(reloaded.settings.outputFormat, .webm)
+        XCTAssertEqual(reloaded.settings.schemaVersion, 2)
+
+        let migratedObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
+        )
+        XCTAssertNotNil(migratedObject["common"])
+        XCTAssertNotNil(migratedObject["sites"])
+        XCTAssertNil(migratedObject["saved_page_selection"])
     }
 
     func testMissingFieldsUseDefaults() throws {
@@ -51,5 +59,32 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.settings.quality, .fullHD)
         XCTAssertEqual(store.settings.outputFormat, .mp4)
         XCTAssertFalse(store.settings.downloadPath.isEmpty)
+    }
+
+    func testPersistsIndependentYouTubeSettings() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let fileURL = directory.appendingPathComponent("user_settings.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = SettingsStore(fileURL: fileURL)
+        store.settings.selectedSite = .youtube
+        store.settings.sites.youtube.playlistSelection = "1-10,20"
+        store.settings.sites.youtube.channelScope = .shorts
+        store.settings.sites.youtube.subtitleMode = .manualAndAuto
+        store.settings.sites.youtube.codecPreference = .h264
+        store.settings.sites.youtube.requestIntervalSeconds = 7
+        store.settings.sites.youtube.useCookies = true
+
+        let reloaded = SettingsStore(fileURL: fileURL)
+        XCTAssertEqual(reloaded.settings.selectedSite, .youtube)
+        XCTAssertEqual(reloaded.settings.sites.youtube.playlistSelection, "1-10,20")
+        XCTAssertEqual(reloaded.settings.sites.youtube.channelScope, .shorts)
+        XCTAssertEqual(reloaded.settings.sites.youtube.subtitleMode, .manualAndAuto)
+        XCTAssertEqual(reloaded.settings.sites.youtube.codecPreference, .h264)
+        XCTAssertEqual(reloaded.settings.sites.youtube.requestIntervalSeconds, 7)
+        XCTAssertTrue(reloaded.settings.sites.youtube.useCookies)
+        XCTAssertEqual(reloaded.settings.sites.pornhub.pageSelection, "")
     }
 }

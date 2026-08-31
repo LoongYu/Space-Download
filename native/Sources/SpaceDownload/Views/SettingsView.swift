@@ -38,6 +38,12 @@ private struct SettingsViewContent: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 17) {
+                    sitePicker
+                    Label(appState.detectedSiteLabel, systemImage: siteIcon)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.orange)
+
+                    sectionLabel("通用设置")
                     picker("视频质量", selection: $settingsStore.settings.quality, values: DownloadQuality.allCases)
                     picker("输出视频格式", selection: $settingsStore.settings.outputFormat, values: OutputFormat.allCases)
 
@@ -62,10 +68,6 @@ private struct SettingsViewContent: View {
                             .textSelection(.enabled)
                     }
 
-                    settingLabel("批量分页下载")
-                    TextField("例如 1-3,5；留空下载全部", text: $settingsStore.settings.pageSelection)
-                        .settingField()
-
                     Toggle("翻译标题为中文", isOn: $settingsStore.settings.translateTitle)
                         .tint(AppTheme.orange)
                     Toggle("写入封面图", isOn: $settingsStore.settings.embedThumbnail)
@@ -78,28 +80,9 @@ private struct SettingsViewContent: View {
                             .settingField()
                     }
 
-                    DisclosureGroup("账号认证（可选）") {
-                        VStack(spacing: 10) {
-                            TextField("账号", text: $settingsStore.settings.username)
-                                .settingField()
-                            SecureField("密码（不会保存）", text: $appState.password)
-                                .settingField()
-                            Toggle("使用 Cookies 文件", isOn: $settingsStore.settings.useCookies)
-                                .tint(AppTheme.orange)
-                            if settingsStore.settings.useCookies {
-                                HStack(spacing: 8) {
-                                    Text(appState.cookiesFileURL?.lastPathComponent ?? "未选择文件")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.subdued)
-                                        .lineLimit(1)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Button("选择") { appState.chooseCookiesFile() }
-                                        .buttonStyle(OrangeButtonStyle(compact: true))
-                                }
-                            }
-                        }
-                        .padding(.top, 10)
-                    }
+                    Divider().overlay(AppTheme.border)
+                    sectionLabel("\(appState.activeSettingsSite.displayName) 设置")
+                    siteSpecificSettings
 
                     if let error = settingsStore.persistenceError {
                         Text(error)
@@ -115,6 +98,145 @@ private struct SettingsViewContent: View {
         .overlay(alignment: .trailing) {
             Rectangle().fill(AppTheme.border).frame(width: 1)
         }
+    }
+
+    @ViewBuilder
+    private var siteSpecificSettings: some View {
+        switch appState.activeSettingsSite {
+        case .pornhub:
+            settingLabel("批量网页分页")
+            TextField(
+                "例如 1-3,5；留空下载全部",
+                text: $settingsStore.settings.sites.pornhub.pageSelection
+            )
+            .settingField()
+
+            DisclosureGroup("账号认证（可选）") {
+                VStack(spacing: 10) {
+                    TextField("账号", text: $settingsStore.settings.sites.pornhub.username)
+                        .settingField()
+                    SecureField("密码（不会保存）", text: $appState.password)
+                        .settingField()
+                    cookiesPicker(
+                        enabled: $settingsStore.settings.sites.pornhub.useCookies,
+                        fileURL: appState.cookiesFileURL,
+                        siteID: .pornhub
+                    )
+                }
+                .padding(.top, 10)
+            }
+
+        case .youtube:
+            settingLabel("播放列表序号")
+            TextField(
+                "例如 1-20,25；留空下载全部",
+                text: $settingsStore.settings.sites.youtube.playlistSelection
+            )
+            .settingField()
+
+            picker(
+                "频道内容范围",
+                selection: $settingsStore.settings.sites.youtube.channelScope,
+                values: YouTubeChannelScope.allCases
+            )
+            picker(
+                "视频编码偏好",
+                selection: $settingsStore.settings.sites.youtube.codecPreference,
+                values: YouTubeCodecPreference.allCases
+            )
+            picker(
+                "字幕",
+                selection: $settingsStore.settings.sites.youtube.subtitleMode,
+                values: YouTubeSubtitleMode.allCases
+            )
+            if settingsStore.settings.sites.youtube.subtitleMode != .none {
+                settingLabel("字幕语言")
+                TextField(
+                    "例如 zh-Hans,zh-Hant,en.*",
+                    text: $settingsStore.settings.sites.youtube.subtitleLanguages
+                )
+                .settingField()
+            }
+            Stepper(
+                "批量请求间隔 \(settingsStore.settings.sites.youtube.requestIntervalSeconds) 秒",
+                value: $settingsStore.settings.sites.youtube.requestIntervalSeconds,
+                in: 0...30
+            )
+            .font(.system(size: 13, weight: .semibold))
+
+            DisclosureGroup("YouTube Cookies（可选）") {
+                cookiesPicker(
+                    enabled: $settingsStore.settings.sites.youtube.useCookies,
+                    fileURL: appState.youtubeCookiesFileURL,
+                    siteID: .youtube
+                )
+                .padding(.top, 10)
+            }
+        }
+    }
+
+    private func cookiesPicker(
+        enabled: Binding<Bool>,
+        fileURL: URL?,
+        siteID: SiteID
+    ) -> some View {
+        VStack(spacing: 10) {
+            Toggle("使用 Cookies 文件", isOn: enabled)
+                .tint(AppTheme.orange)
+            if enabled.wrappedValue {
+                HStack(spacing: 8) {
+                    Text(fileURL?.lastPathComponent ?? "未选择文件")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subdued)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("选择") { appState.chooseCookiesFile(for: siteID) }
+                        .buttonStyle(OrangeButtonStyle(compact: true))
+                }
+            }
+        }
+    }
+
+    private var siteIcon: String {
+        appState.activeSettingsSite == .youtube ? "play.rectangle.fill" : "globe"
+    }
+
+    private var sitePicker: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            settingLabel("站点设置")
+            Menu {
+                ForEach(SiteSelection.allCases) { site in
+                    Button(site.displayName) {
+                        settingsStore.settings.selectedSite = site
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(settingsStore.settings.selectedSite.displayName)
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(AppTheme.subdued)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 8)
+            .frame(height: 34)
+            .frame(maxWidth: .infinity)
+            .background(AppTheme.raisedPanel, in: RoundedRectangle(cornerRadius: 7))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7).stroke(AppTheme.border)
+            }
+        }
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .bold))
+            .tracking(1.1)
+            .foregroundStyle(AppTheme.orange)
     }
 
     private func settingLabel(_ title: String) -> some View {

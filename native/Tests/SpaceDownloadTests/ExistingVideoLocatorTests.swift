@@ -8,6 +8,16 @@ final class ExistingVideoLocatorTests: XCTestCase {
         XCTAssertEqual(ExistingVideoLocator.videoID(from: url), "68569e24d762e")
     }
 
+    func testExtractsYouTubeIDsFromSupportedVideoURLs() throws {
+        let watch = try XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc12345678"))
+        let shortLink = try XCTUnwrap(URL(string: "https://youtu.be/def12345678"))
+        let shorts = try XCTUnwrap(URL(string: "https://www.youtube.com/shorts/ghi12345678"))
+
+        XCTAssertEqual(ExistingVideoLocator.videoID(from: watch), "abc12345678")
+        XCTAssertEqual(ExistingVideoLocator.videoID(from: shortLink), "def12345678")
+        XCTAssertEqual(ExistingVideoLocator.videoID(from: shorts), "ghi12345678")
+    }
+
     func testFindsExistingVideoRecursivelyButIgnoresThumbnail() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

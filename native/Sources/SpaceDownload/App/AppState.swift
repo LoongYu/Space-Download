@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     @Published var validationMessage: String?
     @Published var password = ""
     @Published var cookiesFileURL: URL?
+    @Published var youtubeCookiesFileURL: URL?
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
@@ -33,6 +34,20 @@ final class AppState: ObservableObject {
         LinkParser.parse(linkText).validURLs
     }
 
+    var activeSettingsSite: SiteID {
+        if let selected = settingsStore.settings.selectedSite.siteID {
+            return selected
+        }
+        return parsedLinks.compactMap { SiteRegistry.adapter(for: $0).siteID }.first ?? .pornhub
+    }
+
+    var detectedSiteLabel: String {
+        let sites = SiteRegistry.detectedSites(in: parsedLinks)
+        if sites.isEmpty { return "等待识别站点" }
+        if sites.count > 1 { return "混合站点任务" }
+        return sites.first?.displayName ?? "通用站点"
+    }
+
     func chooseDownloadDirectory() {
         let panel = NSOpenPanel()
         panel.title = "选择保存目录"
@@ -48,6 +63,10 @@ final class AppState: ObservableObject {
     }
 
     func chooseCookiesFile() {
+        chooseCookiesFile(for: activeSettingsSite)
+    }
+
+    func chooseCookiesFile(for siteID: SiteID) {
         let panel = NSOpenPanel()
         panel.title = "选择 cookies.txt"
         panel.prompt = "选择"
@@ -56,7 +75,10 @@ final class AppState: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.plainText]
         guard panel.runModal() == .OK else { return }
-        cookiesFileURL = panel.url
+        switch siteID {
+        case .pornhub: cookiesFileURL = panel.url
+        case .youtube: youtubeCookiesFileURL = panel.url
+        }
     }
 
     func startDownload() {
@@ -69,25 +91,61 @@ final class AppState: ObservableObject {
             validationMessage = "请至少输入一个视频链接"
             return
         }
-        if settingsStore.settings.useCookies, cookiesFileURL == nil {
-            validationMessage = "已启用 Cookies，请先选择 cookies.txt"
+        let detectedSites = SiteRegistry.detectedSites(in: result.validURLs)
+        if detectedSites.contains(.pornhub),
+           settingsStore.settings.sites.pornhub.useCookies,
+           cookiesFileURL == nil {
+            validationMessage = "Pornhub 已启用 Cookies，请先选择 cookies.txt"
+            return
+        }
+        if detectedSites.contains(.youtube),
+           settingsStore.settings.sites.youtube.useCookies,
+           youtubeCookiesFileURL == nil {
+            validationMessage = "YouTube 已启用 Cookies，请先选择 cookies.txt"
             return
         }
 
         let selectedPages: [Int]?
-        do {
-            selectedPages = try PageSelectionParser.parse(settingsStore.settings.pageSelection)
-        } catch {
-            validationMessage = error.localizedDescription
-            return
+        if detectedSites.contains(.pornhub) {
+            do {
+                selectedPages = try PageSelectionParser.parse(settingsStore.settings.pageSelection)
+            } catch {
+                validationMessage = error.localizedDescription
+                return
+            }
+        } else {
+            selectedPages = nil
+        }
+
+        let hasYouTubePlaylist = result.validURLs.contains {
+            let adapter = SiteRegistry.adapter(for: $0)
+            return adapter.siteID == .youtube && adapter.classify($0) == .playlist
+        }
+        let youtubePlaylistItems: [Int]?
+        if hasYouTubePlaylist {
+            do {
+                youtubePlaylistItems = try PageSelectionParser.parse(
+                    settingsStore.settings.sites.youtube.playlistSelection
+                )
+            } catch {
+                validationMessage = "YouTube 播放列表序号无效：\(error.localizedDescription)"
+                return
+            }
+        } else {
+            youtubePlaylistItems = nil
         }
 
         validationMessage = nil
         taskCoordinator.start(request: DownloadRequest(
             sourceURLs: result.validURLs,
             settings: settingsStore.settings,
-            credentials: DownloadCredentials(password: password, cookiesFileURL: cookiesFileURL),
-            selectedPages: selectedPages
+            credentials: DownloadCredentials(
+                password: password,
+                cookiesFileURL: cookiesFileURL,
+                youtubeCookiesFileURL: youtubeCookiesFileURL
+            ),
+            selectedPages: selectedPages,
+            youtubePlaylistItems: youtubePlaylistItems
         ))
     }
 

@@ -59,28 +59,32 @@ final class DownloadEngine {
         } else {
             onEvent(.log("WARN: 未找到 ffmpeg，合并或格式转换可能失败"))
         }
+        if request.sourceURLs.contains(where: { SiteRegistry.adapter(for: $0).siteID == .youtube }) {
+            if let runtime = YouTubeJavaScriptRuntimeLocator.locate() {
+                onEvent(.log("YouTube JavaScript 运行时：\(runtime.url.path)"))
+            } else {
+                onEvent(.log("WARN: 未找到 YouTube JavaScript 运行时，部分清晰度可能不可用；建议安装 Deno 或 Node.js"))
+            }
+        }
 
         for sourceURL in request.sourceURLs where !isCancelled {
-            if CollectionURLBuilder.isCollection(sourceURL) {
-                let collectionURLs: [(URL, Int?)]
-                if let pages = request.selectedPages,
-                   CollectionURLBuilder.supportsPageSelection(sourceURL) {
-                    collectionURLs = pages.compactMap { page in
-                        CollectionURLBuilder.pageURL(from: sourceURL, page: page).map { ($0, page) }
-                    }
+            let adapter = SiteRegistry.adapter(for: sourceURL)
+            if adapter.classify(sourceURL).isCollection {
+                let collectionSources = adapter.collectionSources(for: sourceURL, request: effectiveRequest)
+                if adapter.siteID == .pornhub, let pages = request.selectedPages {
                     onEvent(.log("按网页分页解析：\(pages.map(String.init).joined(separator: ", "))"))
-                } else {
-                    if request.selectedPages != nil {
-                        onEvent(.log("WARN: 当前列表不支持网页分页，按整个列表下载"))
-                    }
-                    collectionURLs = [(sourceURL, nil)]
+                }
+                if adapter.siteID == .youtube,
+                   adapter.classify(sourceURL) == .playlist,
+                   let items = request.youtubePlaylistItems {
+                    onEvent(.log("按播放列表序号解析：\(items.map(String.init).joined(separator: ", "))"))
                 }
 
-                for (collectionURL, page) in collectionURLs where !isCancelled {
-                    onEvent(.log("扫描列表：\(collectionURL.absoluteString)"))
+                for source in collectionSources where !isCancelled {
+                    onEvent(.log("扫描\(source.label)：\(source.url.absoluteString)"))
                     let extraction = await executor.run(
                         executable: tools.ytDlp,
-                        arguments: builder.collectionArguments(for: collectionURL, request: effectiveRequest),
+                        arguments: builder.collectionArguments(for: source.url, request: effectiveRequest),
                         onLine: { line in
                             if let message = liveToolMessage(line, phase: "列表解析") {
                                 onEvent(.log(message))
@@ -91,8 +95,8 @@ final class DownloadEngine {
                           let object = jsonObject(from: extraction.lines)
                     else {
                         preparationFailures.append(DownloadFailure(
-                            title: page.map { "第 \($0) 页" } ?? "批量列表",
-                            url: collectionURL,
+                            title: source.label,
+                            url: source.url,
                             reason: failureReason(from: extraction)
                         ))
                         continue
@@ -100,20 +104,20 @@ final class DownloadEngine {
                     let entries = object["entries"] as? [[String: Any]] ?? []
                     var pageIndex = 0
                     for entry in entries {
-                        guard let url = resolvedURL(from: entry) else { continue }
+                        guard let url = adapter.resolvedEntryURL(from: entry) else { continue }
                         pageIndex += 1
                         items.append(DownloadItem(
                             url: url,
                             title: entry["title"] as? String ?? "",
-                            page: page,
+                            page: source.page,
                             pageIndex: pageIndex
                         ))
                     }
-                    onEvent(.log("\(page.map { "第 \($0) 页" } ?? "列表")识别到 \(pageIndex) 个视频"))
+                    onEvent(.log("\(source.label)识别到 \(pageIndex) 个视频"))
                     if pageIndex == 0 {
                         preparationFailures.append(DownloadFailure(
-                            title: page.map { "第 \($0) 页" } ?? "批量列表",
-                            url: collectionURL,
+                            title: source.label,
+                            url: source.url,
                             reason: "未获取到可下载的视频链接"
                         ))
                     }
@@ -290,8 +294,13 @@ final class DownloadEngine {
             return DownloadRequest(
                 sourceURLs: request.sourceURLs,
                 settings: request.settings,
-                credentials: DownloadCredentials(password: request.credentials.password, cookiesFileURL: cookieURL),
-                selectedPages: request.selectedPages
+                credentials: DownloadCredentials(
+                    password: request.credentials.password,
+                    cookiesFileURL: cookieURL,
+                    youtubeCookiesFileURL: request.credentials.youtubeCookiesFileURL
+                ),
+                selectedPages: request.selectedPages,
+                youtubePlaylistItems: request.youtubePlaylistItems
             )
         } catch {
             onEvent(.log("WARN: 无法创建 Pornhub 临时 Cookies：\(error.localizedDescription)"))
@@ -317,17 +326,6 @@ private func jsonObject(from lines: [String]) -> [String: Any]? {
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { continue }
         return object
-    }
-    return nil
-}
-
-private func resolvedURL(from entry: [String: Any]) -> URL? {
-    for key in ["webpage_url", "original_url", "url"] {
-        if let value = entry[key] as? String,
-           let url = URL(string: value),
-           ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
-            return url
-        }
     }
     return nil
 }

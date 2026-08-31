@@ -15,7 +15,7 @@ final class AppStateTests: XCTestCase {
 
     func testStartRejectsInvalidPageSelection() {
         let appState = makeAppState()
-        appState.linkText = "https://example.com/video"
+        appState.linkText = "https://www.pornhub.com/model/example"
         appState.settingsStore.settings.pageSelection = "3-1"
         appState.startDownload()
 
@@ -36,13 +36,51 @@ final class AppStateTests: XCTestCase {
 
     func testStartRequiresSelectedCookiesFileWhenEnabled() {
         let appState = makeAppState()
-        appState.linkText = "https://example.com/video"
+        appState.linkText = "https://www.pornhub.com/view_video.php?viewkey=abc"
         appState.settingsStore.settings.useCookies = true
 
         appState.startDownload()
 
-        XCTAssertEqual(appState.validationMessage, "已启用 Cookies，请先选择 cookies.txt")
+        XCTAssertEqual(appState.validationMessage, "Pornhub 已启用 Cookies，请先选择 cookies.txt")
         XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
+    func testYouTubeSettingsAreDetectedAndValidatedIndependently() {
+        let appState = makeAppState()
+        appState.linkText = "https://www.youtube.com/playlist?list=PL123"
+        appState.settingsStore.settings.sites.youtube.playlistSelection = "4-2"
+
+        XCTAssertEqual(appState.activeSettingsSite, .youtube)
+        XCTAssertEqual(appState.detectedSiteLabel, "YouTube")
+
+        appState.startDownload()
+
+        XCTAssertEqual(appState.validationMessage, "YouTube 播放列表序号无效：无效分页输入：4-2")
+        XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
+    func testYouTubeCookiesDoNotReusePornhubCookies() {
+        let appState = makeAppState()
+        appState.linkText = "https://youtu.be/dQw4w9WgXcQ"
+        appState.settingsStore.settings.sites.youtube.useCookies = true
+        appState.cookiesFileURL = URL(fileURLWithPath: "/tmp/pornhub-cookies.txt")
+
+        appState.startDownload()
+
+        XCTAssertEqual(appState.validationMessage, "YouTube 已启用 Cookies，请先选择 cookies.txt")
+        XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
+    func testYouTubeChannelIgnoresSavedPlaylistSelection() {
+        let appState = makeAppState()
+        appState.linkText = "https://www.youtube.com/@creator/videos"
+        appState.settingsStore.settings.sites.youtube.playlistSelection = "4-2"
+
+        appState.startDownload()
+
+        XCTAssertNil(appState.validationMessage)
+        XCTAssertEqual(appState.taskCoordinator.status, .running)
+        appState.stopDownload()
     }
 
     func testDownloadProgressAndLogsTriggerFrontendRefresh() async throws {

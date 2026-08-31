@@ -163,6 +163,55 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertEqual(skippedURL, url)
         XCTAssertEqual(foundFile.resolvingSymlinksInPath(), existingFile.resolvingSymlinksInPath())
     }
+
+    func testYouTubePlaylistExpandsFlatEntriesAndDownloadsEachVideo() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let playlistURL = try XCTUnwrap(URL(string: "https://www.youtube.com/playlist?list=PL123"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [
+                #"{"entries":[{"id":"abc12345678","title":"One"},{"id":"def12345678","title":"Two"}]}"#,
+            ]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"abc12345678","title":"One"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [
+                #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/one.mp4"}"#,
+            ]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"id":"def12345678","title":"Two"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [
+                #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/two.mp4"}"#,
+            ]),
+        ])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.downloadPath = directory.path
+        settings.translateTitle = false
+        settings.embedThumbnail = false
+        settings.sites.youtube.requestIntervalSeconds = 0
+
+        let summary = await engine.execute(
+            request: DownloadRequest(
+                sourceURLs: [playlistURL],
+                settings: settings,
+                credentials: .init(),
+                selectedPages: nil,
+                youtubePlaylistItems: [1, 2]
+            ),
+            onEvent: { _ in }
+        )
+
+        XCTAssertEqual(summary.completed, 2)
+        XCTAssertTrue(summary.failures.isEmpty)
+        XCTAssertEqual(executor.recordedArguments.count, 5)
+        XCTAssertTrue(executor.recordedArguments[0].contains("--flat-playlist"))
+        XCTAssertTrue(executor.recordedArguments[0].contains("--playlist-items"))
+        let allArguments = executor.recordedArguments.flatMap { $0 }
+        XCTAssertTrue(allArguments.contains("https://www.youtube.com/watch?v=abc12345678"))
+        XCTAssertTrue(allArguments.contains("https://www.youtube.com/watch?v=def12345678"))
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {
