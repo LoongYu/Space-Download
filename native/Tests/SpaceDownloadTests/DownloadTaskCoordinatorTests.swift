@@ -29,6 +29,28 @@ final class DownloadTaskCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.status, .idle)
     }
 
+    func testRuntimeLogsArePersisted() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let logURL = directory.appendingPathComponent("app.log")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let coordinator = DownloadTaskCoordinator(
+            engine: makeEngine(executor: ImmediateFailingProcessExecutor()),
+            logWriter: RuntimeLogWriter(fileURL: logURL)
+        )
+        let url = try XCTUnwrap(URL(string: "https://example.com/video"))
+
+        coordinator.start(request: makeRequest(urls: [url]))
+        for _ in 0..<100 where coordinator.status.isActive {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        let savedLog = try String(contentsOf: logURL, encoding: .utf8)
+        XCTAssertTrue(savedLog.contains("已创建任务"))
+        XCTAssertTrue(savedLog.contains("下载失败"))
+        XCTAssertTrue(savedLog.contains("任务完成"))
+    }
+
     func testStartActuallyExecutesDownloadEngine() async throws {
         let executor = ImmediateFailingProcessExecutor()
         let coordinator = DownloadTaskCoordinator(engine: makeEngine(executor: executor))

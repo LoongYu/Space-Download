@@ -17,6 +17,7 @@ SpaceDownload 的原生 macOS SwiftUI 客户端，与现有 Python 客户端并�
 - YouTube 单视频、播放列表和频道下载
 - YouTube 播放列表序号筛选，以及频道视频、Shorts、直播和全部内容范围筛选
 - YouTube 独立 Cookies、字幕语言、编码偏好和批量请求间隔设置
+- YouTube 公开内容默认无需 Cookies，并隔离外部 yt-dlp 配置和未启用的环境代理
 - 实时下载进度、速度、ETA、成功/失败数量和失败清单
 - 完整 JSON metadata 日志
 - 5 次下载/分片重试和 8 路分片并发
@@ -55,4 +56,10 @@ open "dist/SpaceDownload.app"
 
 ```text
 ~/Library/Application Support/SpaceDownload/user_settings.json
+```
+
+运行日志会实时追加到：
+
+```text
+~/Library/Logs/SpaceDownload/app.log
 ```

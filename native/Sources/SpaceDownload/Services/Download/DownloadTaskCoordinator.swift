@@ -37,9 +37,14 @@ final class DownloadTaskCoordinator: ObservableObject {
 
     private var engine: DownloadEngine?
     private var task: Task<Void, Never>?
+    private let logWriter: any RuntimeLogWriting
 
-    init(engine: DownloadEngine? = nil) {
+    init(
+        engine: DownloadEngine? = nil,
+        logWriter: any RuntimeLogWriting = RuntimeLogWriter()
+    ) {
         self.engine = engine
+        self.logWriter = logWriter
     }
 
     func start(request: DownloadRequest) {
@@ -165,7 +170,9 @@ final class DownloadTaskCoordinator: ObservableObject {
     private func appendLog(_ message: String) {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
-        logs.append("[\(formatter.string(from: Date()))] \(message)")
+        let line = "[\(formatter.string(from: Date()))] \(message)"
+        logs.append(line)
+        logWriter.append(line)
         if logs.count > 2_000 { logs.removeFirst(logs.count - 2_000) }
     }
 }

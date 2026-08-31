@@ -73,12 +73,21 @@ struct YtDlpCommandBuilder {
         var arguments = [
             "--newline",
             "--no-color",
-            "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-            "--add-header", "Accept-Language:en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         ]
+        if adapter.siteID == .youtube {
+            arguments += ["--ignore-config"]
+        } else {
+            arguments += [
+                "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+                "--add-header", "Accept-Language:en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+            ]
+        }
         arguments += adapter.networkArguments(for: phase, request: request)
         if request.settings.useProxy, !request.settings.proxyURL.isEmpty {
             arguments += ["--proxy", request.settings.proxyURL]
+        } else if adapter.siteID == .youtube {
+            // Prevent shell or system proxy variables from silently changing YouTube behavior.
+            arguments += ["--proxy", ""]
         }
         if adapter.siteID == .pornhub,
            !request.settings.username.isEmpty,

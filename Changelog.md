@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1 (2026-08-31)
+
+### YouTube 无 Cookies 下载修复
+
+- YouTube 公开内容默认继续使用 yt-dlp 官方无 Cookies 下载流程，Cookies 仅用于登录限制内容
+- YouTube 命令不再继承用户级 yt-dlp 配置，避免外部播放器客户端、格式或认证参数干扰应用
+- 未在界面启用代理时显式使用直连，不再静默继承 shell 或系统代理环境变量
+- 移除应用对 YouTube 注入的固定浏览器 UA，交由 yt-dlp 根据当前播放器客户端自动处理
+- 保留 yt-dlp 内置 EJS challenge solver，并自动发现受支持的 JavaScript 运行时
+- 运行日志实时追加保存到 `~/Library/Logs/SpaceDownload/app.log`，应用重启后仍可排查失败原因
+- 使用公开 YouTube 视频完成无 Cookies 的低清单流和 4K 视频加音频双流短片段真实下载验证
+- 测试扩展至 54 项，新增运行日志持久化及 YouTube 直连参数回归测试
+
 ## 0.3.0 (2026-08-31)
 
 ### YouTube 与多站点架构
