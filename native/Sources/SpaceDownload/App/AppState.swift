@@ -99,7 +99,7 @@ final class AppState: ObservableObject {
             return
         }
         if detectedSites.contains(.youtube),
-           settingsStore.settings.sites.youtube.resolvedAuthenticationMode == .cookiesFile,
+           settingsStore.settings.sites.youtube.useCookies,
            youtubeCookiesFileURL == nil {
             validationMessage = "YouTube 已启用 Cookies，请先选择 cookies.txt"
             return

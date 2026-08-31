@@ -45,9 +45,6 @@ struct YouTubeAdapter: SiteAdapter {
 
     func networkArguments(for phase: YtDlpPhase, request: DownloadRequest) -> [String] {
         var arguments: [String] = []
-        if request.settings.sites.youtube.resolvedAuthenticationMode == .chrome {
-            arguments += ["--cookies-from-browser", "chrome"]
-        }
         if let runtime = YouTubeJavaScriptRuntimeLocator.locate() {
             arguments += ["--js-runtimes", runtime.argument]
         }

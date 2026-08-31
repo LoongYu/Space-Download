@@ -75,7 +75,7 @@ final class SettingsStoreTests: XCTestCase {
         store.settings.sites.youtube.subtitleMode = .manualAndAuto
         store.settings.sites.youtube.codecPreference = .h264
         store.settings.sites.youtube.requestIntervalSeconds = 7
-        store.settings.sites.youtube.authenticationMode = .chrome
+        store.settings.sites.youtube.useCookies = true
 
         let reloaded = SettingsStore(fileURL: fileURL)
         XCTAssertEqual(reloaded.settings.selectedSite, .youtube)
@@ -84,23 +84,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.settings.sites.youtube.subtitleMode, .manualAndAuto)
         XCTAssertEqual(reloaded.settings.sites.youtube.codecPreference, .h264)
         XCTAssertEqual(reloaded.settings.sites.youtube.requestIntervalSeconds, 7)
-        XCTAssertEqual(reloaded.settings.sites.youtube.resolvedAuthenticationMode, .chrome)
+        XCTAssertTrue(reloaded.settings.sites.youtube.useCookies)
         XCTAssertEqual(reloaded.settings.sites.pornhub.pageSelection, "")
-    }
-
-    func testLegacyYouTubeCookiesSettingMigratesToCookiesFileAuthentication() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let fileURL = directory.appendingPathComponent("user_settings.json")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        var settings = DownloadSettings.defaults
-        settings.sites.youtube.authenticationMode = nil
-        settings.sites.youtube.useCookies = true
-        try JSONEncoder().encode(settings).write(to: fileURL)
-
-        let reloaded = SettingsStore(fileURL: fileURL)
-        XCTAssertEqual(reloaded.settings.sites.youtube.resolvedAuthenticationMode, .cookiesFile)
     }
 }

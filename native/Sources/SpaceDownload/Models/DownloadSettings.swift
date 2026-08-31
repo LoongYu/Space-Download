@@ -123,14 +123,6 @@ enum YouTubeCodecPreference: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum YouTubeAuthenticationMode: String, Codable, CaseIterable, Identifiable {
-    case none = "无需认证"
-    case cookiesFile = "Cookies 文件"
-    case chrome = "Chrome 浏览器"
-
-    var id: String { rawValue }
-}
-
 struct CommonDownloadSettings: Codable, Equatable {
     var downloadPath: String
     var quality: DownloadQuality
@@ -157,11 +149,6 @@ struct YouTubeSiteSettings: Codable, Equatable {
     var codecPreference: YouTubeCodecPreference
     var requestIntervalSeconds: Int
     var useCookies: Bool
-    var authenticationMode: YouTubeAuthenticationMode?
-
-    var resolvedAuthenticationMode: YouTubeAuthenticationMode {
-        authenticationMode ?? (useCookies ? .cookiesFile : .none)
-    }
 }
 
 struct PerSiteDownloadSettings: Codable, Equatable {
@@ -206,8 +193,7 @@ struct DownloadSettings: Codable, Equatable {
                     subtitleLanguages: "zh-Hans,zh-Hant,en.*",
                     codecPreference: .best,
                     requestIntervalSeconds: 5,
-                    useCookies: false,
-                    authenticationMode: YouTubeAuthenticationMode.none
+                    useCookies: false
                 )
             )
         )

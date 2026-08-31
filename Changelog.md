@@ -1,17 +1,5 @@
 # Changelog
 
-## 0.3.2 (2026-08-31)
-
-### YouTube 浏览器认证与实链验证
-
-- YouTube 设置新增“认证方式”，支持无需认证、Cookies 文件和读取本机 Chrome 会话
-- Chrome 模式仅在下载期间由 yt-dlp 读取浏览器会话，应用不保存浏览器 Cookies
-- 未选择 Cookies 文件模式时忽略残留文件路径，避免不同认证方式互相污染
-- 旧版 YouTube Cookies 配置会自动迁移为 Cookies 文件认证模式
-- 使用 `https://www.youtube.com/watch?v=G1LObB-BYEs` 完成整段真实下载、音视频合并和媒体流校验
-- 当前网络出口对该视频的匿名请求触发 YouTube 人机验证；切换 Chrome 浏览器认证后可正常下载
-- 测试扩展至 57 项，覆盖 Chrome 参数、启动校验、设置持久化和旧配置迁移
-
 ## 0.3.1 (2026-08-31)
 
 ### YouTube 无 Cookies 下载修复
