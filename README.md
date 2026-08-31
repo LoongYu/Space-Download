@@ -18,6 +18,7 @@ Space Download 是一个基于 yt-dlp 的桌面视频下载工具，提供简洁
 - ▶️ 原生 macOS 版支持 YouTube 单视频、播放列表和频道下载
 - 🔓 YouTube 公开内容默认无需 Cookies，登录限制内容可单独选择 Cookies 文件
 - 🧩 原生 macOS 版使用独立站点适配器，站点设置互不混用并可继续扩展
+- 𝕏 原生 macOS 版支持 X 单条 status 的视频、animated GIF 与单帖多视频资源；X Cookies 独立且仅手动选择
 - 🎨 现代化深色主题界面
 - 📊 实时下载进度显示
 - ⚠️ 成功/失败数量统计与失败清单日志

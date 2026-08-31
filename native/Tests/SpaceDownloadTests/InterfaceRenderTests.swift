@@ -109,4 +109,19 @@ final class InterfaceRenderTests: XCTestCase {
             try pngData.write(to: URL(fileURLWithPath: snapshotPath), options: .atomic)
         }
     }
+
+    func testXSettingsWindowRendersAndCanWriteSnapshot() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let appState = AppState(settingsStore: SettingsStore(fileURL: directory.appendingPathComponent("settings.json")))
+        let view = SettingsView(initialPage: .sites, initialSite: .x).environmentObject(appState).frame(width: 860, height: 640)
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 860, height: 640)
+        hostingView.layoutSubtreeIfNeeded()
+        let bitmap = try XCTUnwrap(hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds))
+        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+        if let path = ProcessInfo.processInfo.environment["SPACE_DOWNLOAD_X_SETTINGS_SNAPSHOT_PATH"] {
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: path))
+        }
+    }
 }

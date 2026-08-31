@@ -37,7 +37,7 @@ final class SettingsStoreTests: XCTestCase {
         store.settings.outputFormat = .webm
         let reloaded = SettingsStore(fileURL: fileURL)
         XCTAssertEqual(reloaded.settings.outputFormat, .webm)
-        XCTAssertEqual(reloaded.settings.schemaVersion, 3)
+        XCTAssertEqual(reloaded.settings.schemaVersion, 4)
         XCTAssertEqual(reloaded.settings.sites.pornhub.media.filenameTemplate, .uploaderDateTitle)
         XCTAssertEqual(reloaded.settings.sites.youtube.media.filenameTemplate, .uploaderDateTitle)
         XCTAssertTrue(reloaded.settings.sites.pornhub.media.translateTitle)
@@ -98,6 +98,27 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.settings.sites.pornhub.pageSelection, "")
     }
 
+    func testPersistsIndependentXSettingsWithoutChangingExistingSites() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let fileURL = directory.appendingPathComponent("user_settings.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = SettingsStore(fileURL: fileURL)
+        store.settings.selectedSite = .x
+        store.settings.sites.x.useCookies = true
+        store.settings.sites.x.media.filenameTemplate = .title
+        store.settings.sites.x.media.translateTitle = false
+
+        let reloaded = SettingsStore(fileURL: fileURL)
+        XCTAssertEqual(reloaded.settings.selectedSite, .x)
+        XCTAssertTrue(reloaded.settings.sites.x.useCookies)
+        XCTAssertEqual(reloaded.settings.sites.x.media.filenameTemplate, .title)
+        XCTAssertFalse(reloaded.settings.sites.x.media.translateTitle)
+        XCTAssertEqual(reloaded.settings.sites.youtube.media.filenameTemplate, .uploaderDateTitle)
+        XCTAssertEqual(reloaded.settings.sites.pornhub.media.filenameTemplate, .uploaderDateTitle)
+    }
+
     func testMigratesVersionTwoCommonMediaSettingsToBothSites() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -137,7 +158,7 @@ final class SettingsStoreTests: XCTestCase {
         try Data(versionTwoJSON.utf8).write(to: fileURL)
 
         let settings = SettingsStore(fileURL: fileURL).settings
-        XCTAssertEqual(settings.schemaVersion, 3)
+        XCTAssertEqual(settings.schemaVersion, 4)
         XCTAssertEqual(settings.common.rateLimit, .unlimited)
         XCTAssertEqual(settings.common.concurrentFragments, 8)
         XCTAssertEqual(settings.sites.pornhub.media.filenameTemplate, .title)
@@ -148,6 +169,6 @@ final class SettingsStoreTests: XCTestCase {
         let persisted = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
         )
-        XCTAssertEqual(persisted["schema_version"] as? Int, 3)
+        XCTAssertEqual(persisted["schema_version"] as? Int, 4)
     }
 }

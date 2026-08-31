@@ -355,6 +355,21 @@ private struct SiteSettingsPage: View {
                     siteID: .youtube
                 )
             }
+        case .x:
+            SettingsCard(title: "X 帖子") {
+                Text("支持单条 status 链接中的视频、animated GIF 与多媒体资源。图片资源仅预留任务模型，尚未验证，当前不会宣称支持。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                cookieSettings(
+                    enabled: $settingsStore.settings.sites.x.useCookies,
+                    fileURL: appState.xCookiesFileURL,
+                    siteID: .x
+                )
+                Text("应用只使用你手动选择的 cookies.txt，不读取浏览器 Cookie。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subdued)
+            }
         }
     }
 
@@ -420,6 +435,7 @@ private struct SiteSettingsPage: View {
         switch selectedSite {
         case .pornhub: update(&settingsStore.settings.sites.pornhub.media)
         case .youtube: update(&settingsStore.settings.sites.youtube.media)
+        case .x: update(&settingsStore.settings.sites.x.media)
         }
     }
 }
@@ -438,15 +454,12 @@ struct SiteIconView: View {
     }
 
     private var siteImage: NSImage {
-        let bundledURL = Bundle.main.url(
-            forResource: siteID.iconResourceName,
-            withExtension: "png",
-            subdirectory: "SiteIcons"
-        )
+        let bundledURL = Bundle.main.url(forResource: siteID.iconResourceName, withExtension: "png", subdirectory: "SiteIcons")
+            ?? Bundle.main.url(forResource: siteID.iconResourceName, withExtension: "svg", subdirectory: "SiteIcons")
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).png")
+            .appendingPathComponent("Resources/SiteIcons/\(siteID.iconResourceName).\(siteID == .x ? "svg" : "png")")
         guard let image = NSImage(contentsOf: bundledURL ?? sourceURL) else {
             return NSImage(systemSymbolName: "globe", accessibilityDescription: siteID.displayName)
                 ?? NSImage()

@@ -320,6 +320,35 @@ final class DownloadEngineTests: XCTestCase {
         XCTAssertEqual(thumbnail.lastHeaders?["User-Agent"], "thumbnail-agent")
         XCTAssertTrue(events.contains(.log("封面选择：1920×1080")))
     }
+
+    func testXPostExpandsAndDownloadsEveryVideoResourceWithLiveProgress() async throws {
+        let url = try XCTUnwrap(URL(string: "https://x.com/example/status/1234567890"))
+        let executor = ScriptedProcessExecutor(results: [
+            ProcessExecutionResult(exitCode: 0, lines: [#"{"_type":"playlist","entries":[{"id":"1234567890-1","title":"clip","ext":"mp4"},{"id":"1234567890-2","title":"gif","format":"animated gif","ext":"mp4"},{"id":"1234567890-2","title":"duplicate","ext":"mp4"}]}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: ["SPACEDOWNLOAD_PROGRESS:25%|2MiB/s|00:03", #"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/clip.mp4"}"#]),
+            ProcessExecutionResult(exitCode: 0, lines: [#"SPACEDOWNLOAD_RESULT:{"filepath":"/tmp/gif.mp4"}"#]),
+        ])
+        let engine = makeEngine(executor: executor)
+        engine.prepareForExecution()
+        var settings = DownloadSettings.defaults
+        settings.sites.x.media.translateTitle = false
+        settings.sites.x.media.embedThumbnail = false
+        var events: [DownloadEngineEvent] = []
+
+        let summary = await engine.execute(request: DownloadRequest(
+            sourceURLs: [url], settings: settings, credentials: .init(), selectedPages: nil
+        )) { events.append($0) }
+
+        XCTAssertEqual(summary.completed, 2)
+        XCTAssertTrue(summary.failures.isEmpty)
+        XCTAssertTrue(events.contains(.prepared(total: 2)))
+        XCTAssertTrue(events.contains(.itemProgress(0.25, speed: "2MiB/s", eta: "00:03")))
+        XCTAssertTrue(events.contains(.log("重复媒体 ID 1234567890-2，已跳过并继续后续任务")))
+        XCTAssertEqual(executor.recordedArguments.count, 3)
+        XCTAssertTrue(executor.recordedArguments[0].contains("--yes-playlist"))
+        XCTAssertTrue(executor.recordedArguments[1].contains("1"))
+        XCTAssertTrue(executor.recordedArguments[2].contains("2"))
+    }
 }
 
 final class ScriptedProcessExecutor: ProcessExecuting {

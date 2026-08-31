@@ -4,10 +4,12 @@ struct DownloadCredentials: Equatable {
     var password = ""
     var cookiesFileURL: URL?
     var youtubeCookiesFileURL: URL?
+    var xCookiesFileURL: URL?
 
     func cookiesFileURL(for siteID: SiteID?) -> URL? {
         switch siteID {
         case .youtube: youtubeCookiesFileURL
+        case .x: xCookiesFileURL
         case .pornhub, .none: cookiesFileURL
         }
     }
@@ -40,6 +42,29 @@ struct DownloadItem: Equatable {
     let title: String
     let page: Int?
     let pageIndex: Int?
+    var resource: MediaResourceTask?
+
+    init(url: URL, title: String, page: Int?, pageIndex: Int?, resource: MediaResourceTask? = nil) {
+        self.url = url
+        self.title = title
+        self.page = page
+        self.pageIndex = pageIndex
+        self.resource = resource
+    }
+}
+
+/// A reusable unit of work for a single media resource inside a social post.
+/// Images are represented so future adapters can opt in after verification; the
+/// current engine intentionally downloads only video and animated GIF resources.
+struct MediaResourceTask: Equatable {
+    enum Kind: String, Equatable { case video, animatedGIF, image }
+
+    let stableID: String
+    let kind: Kind
+    let selector: Int?
+    let metadataJSON: Data
+
+    var isDownloadSupported: Bool { kind != .image }
 }
 
 struct DownloadFailure: Equatable, Identifiable {

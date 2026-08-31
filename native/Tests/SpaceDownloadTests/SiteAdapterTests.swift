@@ -110,6 +110,25 @@ final class SiteAdapterTests: XCTestCase {
         XCTAssertEqual(SiteRegistry.detectedSites(in: [pornhub, youtube]), [.pornhub, .youtube])
     }
 
+    func testXMatchesOnlyStatusLinksAndExpandsMultipleMediaKinds() throws {
+        let adapter = XAdapter()
+        let status = try XCTUnwrap(URL(string: "https://x.com/example/status/1234567890"))
+        XCTAssertTrue(adapter.matches(status))
+        XCTAssertTrue(adapter.matches(try XCTUnwrap(URL(string: "https://twitter.com/example/status/1234567890"))))
+        XCTAssertFalse(adapter.matches(try XCTUnwrap(URL(string: "https://x.com/example"))))
+
+        let resources = adapter.mediaResources(from: ["entries": [
+            ["id": "1234567890-1", "title": "video", "ext": "mp4"],
+            ["id": "1234567890-2", "title": "animation", "format": "animated gif"],
+            ["id": "1234567890-3", "title": "photo", "ext": "jpg"],
+        ]], sourceURL: status)
+
+        XCTAssertEqual(resources.map(\.stableID), ["1234567890-1", "1234567890-2", "1234567890-3"])
+        XCTAssertEqual(resources.map(\.kind), [.video, .animatedGIF, .image])
+        XCTAssertEqual(resources.map(\.selector), [1, 2, 3])
+        XCTAssertEqual(resources.map(\.isDownloadSupported), [true, true, false])
+    }
+
     func testYouTubeJavaScriptRuntimeLocatorFindsNodeInConfiguredDirectory() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

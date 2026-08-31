@@ -15,6 +15,15 @@ struct YtDlpCommandBuilder {
         ]
     }
 
+    func resourceDiscoveryArguments(for url: URL, request: DownloadRequest) -> [String] {
+        commonNetworkArguments(for: url, phase: .metadata, request: request) + [
+            "--yes-playlist",
+            "--skip-download",
+            "--dump-single-json",
+            url.absoluteString,
+        ]
+    }
+
     func collectionArguments(for url: URL, request: DownloadRequest) -> [String] {
         let adapter = SiteRegistry.adapter(for: url)
         return commonNetworkArguments(for: url, phase: .collection, request: request)
@@ -38,7 +47,6 @@ struct YtDlpCommandBuilder {
         let concurrentFragments = min(max(settings.common.concurrentFragments, 1), 16)
         var arguments = commonNetworkArguments(for: item.url, phase: .download, request: request)
         arguments += [
-            "--no-playlist",
             "--retries", "5",
             "--fragment-retries", "5",
             "--concurrent-fragments", String(concurrentFragments),
@@ -55,6 +63,11 @@ struct YtDlpCommandBuilder {
             "--progress-template", "download:\(Self.progressPrefix)%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
             "--print", "after_move:\(Self.resultPrefix)%()j",
         ]
+        if let selector = item.resource?.selector {
+            arguments += ["--yes-playlist", "--playlist-items", String(selector)]
+        } else {
+            arguments += ["--no-playlist"]
+        }
         if let rateLimit = settings.common.rateLimit.ytDlpValue {
             arguments += ["--limit-rate", rateLimit]
         }

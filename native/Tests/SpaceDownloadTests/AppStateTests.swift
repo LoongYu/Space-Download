@@ -70,6 +70,20 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(appState.taskCoordinator.status, .idle)
     }
 
+    func testXCookiesAreDetectedAndDoNotReuseOtherSiteFiles() {
+        let appState = makeAppState()
+        appState.linkText = "https://x.com/example/status/1234567890"
+        appState.settingsStore.settings.sites.x.useCookies = true
+        appState.cookiesFileURL = URL(fileURLWithPath: "/tmp/pornhub-cookies.txt")
+        appState.youtubeCookiesFileURL = URL(fileURLWithPath: "/tmp/youtube-cookies.txt")
+
+        XCTAssertEqual(appState.detectedSiteLabel, "X")
+        appState.startDownload()
+
+        XCTAssertEqual(appState.validationMessage, "X 已启用 Cookies，请先选择 cookies.txt")
+        XCTAssertEqual(appState.taskCoordinator.status, .idle)
+    }
+
     func testYouTubeChannelIgnoresSavedPlaylistSelection() {
         let appState = makeAppState()
         appState.linkText = "https://www.youtube.com/@creator/videos"

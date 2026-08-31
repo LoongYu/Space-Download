@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     @Published var password = ""
     @Published var cookiesFileURL: URL?
     @Published var youtubeCookiesFileURL: URL?
+    @Published var xCookiesFileURL: URL?
 
     let settingsStore: SettingsStore
     let taskCoordinator: DownloadTaskCoordinator
@@ -66,6 +67,7 @@ final class AppState: ObservableObject {
         switch siteID {
         case .pornhub: cookiesFileURL = panel.url
         case .youtube: youtubeCookiesFileURL = panel.url
+        case .x: xCookiesFileURL = panel.url
         }
     }
 
@@ -90,6 +92,12 @@ final class AppState: ObservableObject {
            settingsStore.settings.sites.youtube.useCookies,
            youtubeCookiesFileURL == nil {
             validationMessage = "YouTube 已启用 Cookies，请先选择 cookies.txt"
+            return
+        }
+        if detectedSites.contains(.x),
+           settingsStore.settings.sites.x.useCookies,
+           xCookiesFileURL == nil {
+            validationMessage = "X 已启用 Cookies，请先选择 cookies.txt"
             return
         }
 
@@ -130,7 +138,8 @@ final class AppState: ObservableObject {
             credentials: DownloadCredentials(
                 password: password,
                 cookiesFileURL: cookiesFileURL,
-                youtubeCookiesFileURL: youtubeCookiesFileURL
+                youtubeCookiesFileURL: youtubeCookiesFileURL,
+                xCookiesFileURL: xCookiesFileURL
             ),
             selectedPages: selectedPages,
             youtubePlaylistItems: youtubePlaylistItems

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 (2026-08-31)
+
+### X 多资源帖子适配
+
+- 新增可复用的社交帖子多资源任务抽象，媒体资源拥有稳定 ID、类型、选择序号与独立 metadata
+- 首个串行适配站点为 X，仅识别 `x.com` / `twitter.com` 的单条 status 链接；未开发 TikTok、抖音、Instagram 或 Telegram
+- 支持 X 单视频、animated GIF 和单帖多视频逐资源下载，保留实时进度、运行日志、失败统计及失败后继续
+- 多资源按媒体 ID 去重并在下载前检查本地同 ID 文件，已存在资源跳过后继续处理剩余队列
+- 图片类型已纳入通用模型以便未来扩展，但当前未完成真实验证，明确记录失败且不宣称支持
+- 新增 X 独立命名、翻译、封面及手动 `cookies.txt` 设置；不读取浏览器 Cookie，也不复用 Pornhub/YouTube Cookie
+- 设置 schema 升级至 v4，旧版配置自动补齐 X 默认项；Pornhub 与 YouTube 的既有流程保持不变
+- 使用打包版本 yt-dlp 2026.08.19 对公开双视频 status 完成真实 metadata 探测，识别两个独立媒体 ID；详见 `native/X_LIVE_PROBE.md`
+- 测试扩展至 67 项，并新增 X 设置页渲染截图
+
 ## 0.4.1 (2026-08-31)
 
 ### YouTube 标题与封面适配

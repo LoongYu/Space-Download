@@ -39,9 +39,13 @@ protocol SiteAdapter {
     func downloadArguments(for request: DownloadRequest) -> [String]
     func resolvedEntryURL(from entry: [String: Any]) -> URL?
     func preferredThumbnail(from metadata: [String: Any]) -> SiteThumbnail?
+    var expandsMediaResources: Bool { get }
+    func mediaResources(from metadata: [String: Any], sourceURL: URL) -> [MediaResourceTask]
 }
 
 extension SiteAdapter {
+    var expandsMediaResources: Bool { false }
+    func mediaResources(from metadata: [String: Any], sourceURL: URL) -> [MediaResourceTask] { [] }
     func collectionSources(for url: URL, request: DownloadRequest) -> [SiteCollectionSource] {
         [SiteCollectionSource(url: url, page: nil, label: classify(url) == .channel ? "频道" : "播放列表")]
     }
@@ -91,6 +95,7 @@ enum SiteRegistry {
     private static let adapters: [any SiteAdapter] = [
         PornhubAdapter(),
         YouTubeAdapter(),
+        XAdapter(),
     ]
     private static let genericAdapter = GenericSiteAdapter()
 

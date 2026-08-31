@@ -77,6 +77,7 @@ enum FilenameTemplate: String, Codable, CaseIterable, Identifiable {
 enum SiteID: String, Codable, CaseIterable, Identifiable {
     case pornhub
     case youtube
+    case x
 
     var id: String { rawValue }
 
@@ -84,6 +85,7 @@ enum SiteID: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .pornhub: "Pornhub"
         case .youtube: "YouTube"
+        case .x: "X"
         }
     }
 
@@ -94,6 +96,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
     case automatic
     case pornhub
     case youtube
+    case x
 
     var id: String { rawValue }
 
@@ -102,6 +105,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .automatic: "自动识别"
         case .pornhub: "Pornhub"
         case .youtube: "YouTube"
+        case .x: "X"
         }
     }
 
@@ -110,6 +114,7 @@ enum SiteSelection: String, Codable, CaseIterable, Identifiable {
         case .automatic: nil
         case .pornhub: .pornhub
         case .youtube: .youtube
+        case .x: .x
         }
     }
 }
@@ -188,15 +193,38 @@ struct YouTubeSiteSettings: Codable, Equatable {
     var useCookies: Bool
 }
 
+struct XSiteSettings: Codable, Equatable {
+    var media: SiteMediaSettings
+    var useCookies: Bool
+}
+
 struct PerSiteDownloadSettings: Codable, Equatable {
     var pornhub: PornhubSiteSettings
     var youtube: YouTubeSiteSettings
+    var x: XSiteSettings
+
+    private enum CodingKeys: String, CodingKey { case pornhub, youtube, x }
+
+    init(pornhub: PornhubSiteSettings, youtube: YouTubeSiteSettings, x: XSiteSettings) {
+        self.pornhub = pornhub
+        self.youtube = youtube
+        self.x = x
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        pornhub = try values.decode(PornhubSiteSettings.self, forKey: .pornhub)
+        youtube = try values.decode(YouTubeSiteSettings.self, forKey: .youtube)
+        x = try values.decodeIfPresent(XSiteSettings.self, forKey: .x)
+            ?? XSiteSettings(media: .defaults, useCookies: false)
+    }
 }
 
 extension DownloadSettings {
     func mediaSettings(for siteID: SiteID?) -> SiteMediaSettings {
         switch siteID {
         case .youtube: sites.youtube.media
+        case .x: sites.x.media
         case .pornhub, .none: sites.pornhub.media
         }
     }
@@ -210,7 +238,7 @@ struct DownloadSettings: Codable, Equatable {
 
     static var defaults: DownloadSettings {
         DownloadSettings(
-            schemaVersion: 3,
+            schemaVersion: 4,
             selectedSite: .automatic,
             common: CommonDownloadSettings(
                 downloadPath: FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -238,7 +266,8 @@ struct DownloadSettings: Codable, Equatable {
                     codecPreference: .best,
                     requestIntervalSeconds: 5,
                     useCookies: false
-                )
+                ),
+                x: XSiteSettings(media: .defaults, useCookies: false)
             )
         )
     }
@@ -284,7 +313,7 @@ struct DownloadSettings: Codable, Equatable {
             let storedVersion = try modern.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 2
             selectedSite = try modern.decodeIfPresent(SiteSelection.self, forKey: .selectedSite) ?? .automatic
             if storedVersion >= 3 {
-                schemaVersion = storedVersion
+                schemaVersion = 4
                 common = try modern.decodeIfPresent(CommonDownloadSettings.self, forKey: .common) ?? defaults.common
                 sites = try modern.decodeIfPresent(PerSiteDownloadSettings.self, forKey: .sites) ?? defaults.sites
             } else {
@@ -296,7 +325,7 @@ struct DownloadSettings: Codable, Equatable {
                     translateTitle: oldCommon?.translateTitle ?? defaults.sites.pornhub.media.translateTitle,
                     embedThumbnail: oldCommon?.embedThumbnail ?? defaults.sites.pornhub.media.embedThumbnail
                 )
-                schemaVersion = 3
+                schemaVersion = 4
                 common = CommonDownloadSettings(
                     downloadPath: oldCommon?.downloadPath ?? defaults.downloadPath,
                     quality: oldCommon?.quality ?? defaults.quality,
@@ -322,14 +351,15 @@ struct DownloadSettings: Codable, Equatable {
                         codecPreference: oldSites?.youtube.codecPreference ?? defaults.sites.youtube.codecPreference,
                         requestIntervalSeconds: oldSites?.youtube.requestIntervalSeconds ?? defaults.sites.youtube.requestIntervalSeconds,
                         useCookies: oldSites?.youtube.useCookies ?? defaults.sites.youtube.useCookies
-                    )
+                    ),
+                    x: defaults.sites.x
                 )
             }
             return
         }
 
         let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        schemaVersion = 3
+        schemaVersion = 4
         selectedSite = .automatic
         let legacyMedia = SiteMediaSettings(
             filenameTemplate: try legacy.decodeIfPresent(FilenameTemplate.self, forKey: .filenameTemplate) ?? defaults.filenameTemplate,

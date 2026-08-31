@@ -69,7 +69,53 @@ final class DownloadEngine {
 
         for sourceURL in request.sourceURLs where !isCancelled {
             let adapter = SiteRegistry.adapter(for: sourceURL)
-            if adapter.classify(sourceURL).isCollection {
+            if adapter.expandsMediaResources {
+                onEvent(.log("解析多资源帖子：\(sourceURL.absoluteString)"))
+                let extraction = await executor.run(
+                    executable: tools.ytDlp,
+                    arguments: builder.resourceDiscoveryArguments(for: sourceURL, request: effectiveRequest),
+                    onLine: { line in
+                        if let message = liveToolMessage(line, phase: "资源解析") { onEvent(.log(message)) }
+                    }
+                )
+                guard extraction.exitCode == 0, let metadata = jsonObject(from: extraction.lines) else {
+                    preparationFailures.append(DownloadFailure(
+                        title: "\(adapter.displayName) 帖子",
+                        url: sourceURL,
+                        reason: failureReason(from: extraction)
+                    ))
+                    continue
+                }
+                let resources = adapter.mediaResources(from: metadata, sourceURL: sourceURL)
+                if resources.isEmpty {
+                    preparationFailures.append(DownloadFailure(
+                        title: "\(adapter.displayName) 帖子",
+                        url: sourceURL,
+                        reason: "帖子中未识别到可处理的媒体资源"
+                    ))
+                    continue
+                }
+                for resource in resources {
+                    guard resource.isDownloadSupported else {
+                        preparationFailures.append(DownloadFailure(
+                            title: "\(adapter.displayName) 图片资源 \(resource.stableID)",
+                            url: sourceURL,
+                            reason: "当前版本尚未验证 X 图片下载，因此未宣称或执行图片支持"
+                        ))
+                        continue
+                    }
+                    let resourceMetadata = jsonObject(from: resource.metadataJSON) ?? [:]
+                    let title = resourceMetadata["title"] as? String ?? ""
+                    items.append(DownloadItem(
+                        url: sourceURL,
+                        title: title,
+                        page: nil,
+                        pageIndex: resource.selector,
+                        resource: resource
+                    ))
+                }
+                onEvent(.log("\(adapter.displayName) 帖子识别到 \(resources.count) 个媒体资源"))
+            } else if adapter.classify(sourceURL).isCollection {
                 let collectionSources = adapter.collectionSources(for: sourceURL, request: effectiveRequest)
                 if adapter.siteID == .pornhub, let pages = request.selectedPages {
                     onEvent(.log("按网页分页解析：\(pages.map(String.init).joined(separator: ", "))"))
@@ -127,7 +173,13 @@ final class DownloadEngine {
             }
         }
 
-        items = deduplicated(items)
+        items = deduplicated(items) { duplicate in
+            if let id = duplicate.resource?.stableID {
+                onEvent(.log("重复媒体 ID \(id)，已跳过并继续后续任务"))
+            } else {
+                onEvent(.log("重复链接 \(duplicate.url.absoluteString)，已跳过并继续后续任务"))
+            }
+        }
         onEvent(.prepared(total: items.count + preparationFailures.count))
         for failure in preparationFailures {
             summary.failures.append(failure)
@@ -147,7 +199,7 @@ final class DownloadEngine {
             ))
 
             let downloadDirectory = URL(fileURLWithPath: effectiveRequest.settings.downloadPath, isDirectory: true)
-            if let inferredID = ExistingVideoLocator.videoID(from: item.url),
+            if let inferredID = item.resource?.stableID ?? ExistingVideoLocator.videoID(from: item.url),
                let existingFile = ExistingVideoLocator.find(videoID: inferredID, in: downloadDirectory) {
                 summary.completed += 1
                 onEvent(.itemSkipped(
@@ -158,23 +210,28 @@ final class DownloadEngine {
                 continue
             }
 
-            let metadataExecution = await executor.run(
-                executable: tools.ytDlp,
-                arguments: builder.metadataArguments(for: item.url, request: effectiveRequest),
-                onLine: { line in
-                    if let message = liveToolMessage(line, phase: "视频解析") {
-                        onEvent(.log(message))
+            let metadataExecution: ProcessExecutionResult?
+            let metadata: [String: Any]?
+            if let data = item.resource?.metadataJSON {
+                metadataExecution = nil
+                metadata = jsonObject(from: data)
+            } else {
+                let execution = await executor.run(
+                    executable: tools.ytDlp,
+                    arguments: builder.metadataArguments(for: item.url, request: effectiveRequest),
+                    onLine: { line in
+                        if let message = liveToolMessage(line, phase: "视频解析") { onEvent(.log(message)) }
                     }
-                }
-            )
-            guard metadataExecution.exitCode == 0,
-                  let metadata = jsonObject(from: metadataExecution.lines)
-            else {
+                )
+                metadataExecution = execution
+                metadata = execution.exitCode == 0 ? jsonObject(from: execution.lines) : nil
+            }
+            guard let metadata else {
                 if isCancelled { break }
                 let failure = DownloadFailure(
                     title: item.title.isEmpty ? "未知标题" : item.title,
                     url: item.url,
-                    reason: failureReason(from: metadataExecution)
+                    reason: metadataExecution.map(failureReason(from:)) ?? "资源 metadata 无效"
                 )
                 summary.failures.append(failure)
                 onEvent(.itemFailed(failure))
@@ -182,7 +239,13 @@ final class DownloadEngine {
             }
 
             if let title = metadata["title"] as? String, !title.isEmpty {
-                item = DownloadItem(url: item.url, title: title, page: item.page, pageIndex: item.pageIndex)
+                item = DownloadItem(
+                    url: item.url,
+                    title: title,
+                    page: item.page,
+                    pageIndex: item.pageIndex,
+                    resource: item.resource
+                )
             }
             if let metadataID = metadata["id"] as? String,
                let existingFile = ExistingVideoLocator.find(videoID: metadataID, in: downloadDirectory) {
@@ -301,7 +364,8 @@ final class DownloadEngine {
                 credentials: DownloadCredentials(
                     password: request.credentials.password,
                     cookiesFileURL: cookieURL,
-                    youtubeCookiesFileURL: request.credentials.youtubeCookiesFileURL
+                    youtubeCookiesFileURL: request.credentials.youtubeCookiesFileURL,
+                    xCookiesFileURL: request.credentials.xCookiesFileURL
                 ),
                 selectedPages: request.selectedPages,
                 youtubePlaylistItems: request.youtubePlaylistItems
@@ -323,6 +387,10 @@ private func jsonObject(from lines: [String]) -> [String: Any]? {
         return object
     }
     return nil
+}
+
+private func jsonObject(from data: Data) -> [String: Any]? {
+    try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 }
 
 private func failureReason(from execution: ProcessExecutionResult) -> String {
@@ -365,9 +433,14 @@ private func liveToolMessage(_ line: String, phase: String) -> String? {
     return "[\(phase)] \(value)"
 }
 
-private func deduplicated(_ items: [DownloadItem]) -> [DownloadItem] {
-    var seen = Set<URL>()
-    return items.filter { seen.insert($0.url).inserted }
+private func deduplicated(_ items: [DownloadItem], onDuplicate: (DownloadItem) -> Void) -> [DownloadItem] {
+    var seen = Set<String>()
+    return items.filter {
+        let key = $0.resource.map { "resource:\($0.stableID)" } ?? "url:\($0.url.absoluteString)"
+        let inserted = seen.insert(key).inserted
+        if !inserted { onDuplicate($0) }
+        return inserted
+    }
 }
 
 private extension String {

@@ -121,4 +121,29 @@ final class YtDlpCommandBuilderTests: XCTestCase {
         XCTAssertEqual(arguments[selectionIndex + 1], "1,3,4")
         XCTAssertTrue(arguments.contains("--flat-playlist"))
     }
+
+    func testBuildsXResourceSelectionAndUsesOnlyXCookies() throws {
+        let url = try XCTUnwrap(URL(string: "https://x.com/example/status/1234567890"))
+        let metadata = try JSONSerialization.data(withJSONObject: ["id": "1234567890-2"])
+        let item = DownloadItem(url: url, title: "post", page: nil, pageIndex: 2, resource: MediaResourceTask(
+            stableID: "1234567890-2", kind: .animatedGIF, selector: 2, metadataJSON: metadata
+        ))
+        let xCookies = URL(fileURLWithPath: "/tmp/x-cookies.txt")
+        let request = DownloadRequest(sourceURLs: [url], settings: .defaults, credentials: DownloadCredentials(
+            cookiesFileURL: URL(fileURLWithPath: "/tmp/pornhub.txt"),
+            youtubeCookiesFileURL: URL(fileURLWithPath: "/tmp/youtube.txt"),
+            xCookiesFileURL: xCookies
+        ), selectedPages: nil)
+        let arguments = YtDlpCommandBuilder(tools: ToolLocations(
+            ytDlp: URL(fileURLWithPath: "/usr/bin/yt-dlp"), ffmpeg: nil
+        )).downloadArguments(for: item, request: request, temporaryDirectory: URL(fileURLWithPath: "/tmp/work"))
+
+        XCTAssertTrue(arguments.contains("--yes-playlist"))
+        let index = try XCTUnwrap(arguments.firstIndex(of: "--playlist-items"))
+        XCTAssertEqual(arguments[index + 1], "2")
+        XCTAssertTrue(arguments.contains(xCookies.path))
+        XCTAssertFalse(arguments.contains("/tmp/pornhub.txt"))
+        XCTAssertFalse(arguments.contains("/tmp/youtube.txt"))
+        XCTAssertFalse(arguments.contains("--cookies-from-browser"))
+    }
 }
