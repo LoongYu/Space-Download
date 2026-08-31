@@ -4,6 +4,35 @@ import XCTest
 
 @MainActor
 final class SettingsStoreTests: XCTestCase {
+    func testTitleOnlyTemplateIsFirstAndPersistsForEverySite() throws {
+        XCTAssertEqual(FilenameTemplate.allCases.first, .titleOnly)
+        XCTAssertEqual(FilenameTemplate.titleOnly.rule, "%(title)s")
+        XCTAssertEqual(FilenameTemplate.title.rule, "%(title)s(%(id)s)")
+
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let file = directory.appendingPathComponent("settings.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = SettingsStore(fileURL: file)
+        store.settings.sites.pornhub.media.filenameTemplate = .titleOnly
+        store.settings.sites.youtube.media.filenameTemplate = .titleOnly
+        store.settings.sites.x.media.filenameTemplate = .titleOnly
+        store.settings.sites.tiktok.media.filenameTemplate = .titleOnly
+        store.settings.sites.douyin.media.filenameTemplate = .titleOnly
+        store.settings.sites.instagram.media.filenameTemplate = .titleOnly
+        store.settings.sites.telegram.media.filenameTemplate = .titleOnly
+
+        let reloaded = SettingsStore(fileURL: file).settings
+        XCTAssertEqual(reloaded.sites.pornhub.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.youtube.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.x.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.tiktok.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.douyin.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.instagram.media.filenameTemplate, .titleOnly)
+        XCTAssertEqual(reloaded.sites.telegram.media.filenameTemplate, .titleOnly)
+    }
+
     func testSchemaFourSettingsMigrateTikTokDefaultsWithoutChangingExistingSites() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

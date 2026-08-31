@@ -53,6 +53,7 @@ enum DownloadRateLimit: String, Codable, CaseIterable, Identifiable {
 }
 
 enum FilenameTemplate: String, Codable, CaseIterable, Identifiable {
+    case titleOnly = "仅标题"
     case title = "仅标题(id)"
     case uploaderTitle = "作者-标题(id)"
     case dateTitle = "日期-标题(id)"
@@ -64,6 +65,7 @@ enum FilenameTemplate: String, Codable, CaseIterable, Identifiable {
 
     var rule: String? {
         switch self {
+        case .titleOnly: return "%(title)s"
         case .title: return "%(title)s(%(id)s)"
         case .uploaderTitle: return "%(uploader)s-%(title)s(%(id)s)"
         case .dateTitle: return "%(upload_date)s-%(title)s(%(id)s)"

@@ -31,7 +31,7 @@ struct SettingsView: View {
             Divider().overlay(AppTheme.border)
             detail
         }
-        .frame(width: 860, height: 640)
+        .frame(width: 960, height: 680)
         .background(AppTheme.background)
         .foregroundStyle(.white)
         .preferredColorScheme(.dark)
@@ -74,8 +74,8 @@ struct SettingsView: View {
                 .foregroundStyle(AppTheme.subdued)
                 .padding(.horizontal, 12)
         }
-        .padding(18)
-        .frame(width: 205)
+        .padding(16)
+        .frame(width: 190)
         .background(AppTheme.panel)
     }
 
@@ -99,66 +99,70 @@ private struct GlobalSettingsPage: View {
             title: "全局设置",
             subtitle: "所有站点共用的下载与网络参数"
         ) {
-            SettingsCard(title: "下载") {
-                SettingsRow(title: "保存目录", detail: "所有任务的默认保存位置") {
-                    HStack(spacing: 8) {
-                        TextField("保存目录", text: $settingsStore.settings.common.downloadPath)
-                            .settingField()
-                            .frame(width: 175)
-                        Button("浏览") { appState.chooseDownloadDirectory() }
-                            .buttonStyle(OrangeButtonStyle(compact: true))
-                            .fixedSize(horizontal: true, vertical: false)
+            HStack(alignment: .top, spacing: 14) {
+                SettingsCard(title: "下载") {
+                    SettingsRow(title: "保存目录", detail: "所有任务的默认保存位置") {
+                        HStack(spacing: 7) {
+                            TextField("保存目录", text: $settingsStore.settings.common.downloadPath)
+                                .settingField()
+                                .frame(width: 142)
+                            Button("浏览") { appState.chooseDownloadDirectory() }
+                                .buttonStyle(OrangeButtonStyle(compact: true))
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
                     }
-                }
-                SettingsDivider()
-                SettingsRow(title: "视频质量", detail: "站点支持范围内选择最高匹配质量") {
-                    SettingsPicker(
-                        selection: $settingsStore.settings.common.quality,
-                        values: DownloadQuality.allCases
-                    )
-                }
-                SettingsDivider()
-                SettingsRow(title: "输出格式", detail: "下载完成后的封装或转码格式") {
-                    SettingsPicker(
-                        selection: $settingsStore.settings.common.outputFormat,
-                        values: OutputFormat.allCases
-                    )
-                }
-            }
-
-            SettingsCard(title: "性能") {
-                SettingsRow(title: "下载限速", detail: "不限速时使用当前网络可用带宽") {
-                    SettingsPicker(
-                        selection: $settingsStore.settings.common.rateLimit,
-                        values: DownloadRateLimit.allCases
-                    )
-                }
-                SettingsDivider()
-                SettingsRow(title: "分片并发数", detail: "单个视频同时下载的分片数量，范围 1–16") {
-                    Stepper(
-                        value: $settingsStore.settings.common.concurrentFragments,
-                        in: 1...16
-                    ) {
-                        Text("\(settingsStore.settings.common.concurrentFragments)")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .frame(width: 28)
-                    }
-                    .frame(width: 112)
-                }
-            }
-
-            SettingsCard(title: "网络") {
-                SettingsRow(title: "代理", detail: "所有站点统一使用的 HTTP 或 SOCKS 代理") {
-                    Toggle("", isOn: $settingsStore.settings.common.useProxy)
-                        .labelsHidden()
-                        .tint(AppTheme.orange)
-                }
-                if settingsStore.settings.common.useProxy {
                     SettingsDivider()
-                    SettingsRow(title: "代理地址", detail: "例如 http://127.0.0.1:7890") {
-                        TextField("代理地址", text: $settingsStore.settings.common.proxyURL)
-                            .settingField()
-                            .frame(width: 280)
+                    SettingsRow(title: "视频质量", detail: "站点支持范围内选择最高匹配质量") {
+                        SettingsPicker(
+                            selection: $settingsStore.settings.common.quality,
+                            values: DownloadQuality.allCases
+                        )
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "输出格式", detail: "下载完成后的封装或转码格式") {
+                        SettingsPicker(
+                            selection: $settingsStore.settings.common.outputFormat,
+                            values: OutputFormat.allCases
+                        )
+                    }
+                }
+
+                VStack(spacing: 14) {
+                    SettingsCard(title: "性能") {
+                        SettingsRow(title: "下载限速", detail: "不限速时使用当前网络可用带宽") {
+                            SettingsPicker(
+                                selection: $settingsStore.settings.common.rateLimit,
+                                values: DownloadRateLimit.allCases
+                            )
+                        }
+                        SettingsDivider()
+                        SettingsRow(title: "分片并发数", detail: "单个视频同时下载的分片数量，范围 1–16") {
+                            Stepper(
+                                value: $settingsStore.settings.common.concurrentFragments,
+                                in: 1...16
+                            ) {
+                                Text("\(settingsStore.settings.common.concurrentFragments)")
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .frame(width: 28)
+                            }
+                            .frame(width: 112)
+                        }
+                    }
+
+                    SettingsCard(title: "网络") {
+                        SettingsRow(title: "代理", detail: "所有站点统一使用的 HTTP 或 SOCKS 代理") {
+                            Toggle("", isOn: $settingsStore.settings.common.useProxy)
+                                .labelsHidden()
+                                .tint(AppTheme.orange)
+                        }
+                        if settingsStore.settings.common.useProxy {
+                            SettingsDivider()
+                            SettingsRow(title: "代理地址", detail: "例如 http://127.0.0.1:7890") {
+                                TextField("代理地址", text: $settingsStore.settings.common.proxyURL)
+                                    .settingField()
+                                    .frame(width: 175)
+                            }
+                        }
                     }
                 }
             }
@@ -183,8 +187,12 @@ private struct SiteSettingsPage: View {
             subtitle: "每个站点独立保存命名、采集和认证规则"
         ) {
             siteSelector
-            mediaSettings
-            siteSpecificSettings
+            HStack(alignment: .top, spacing: 14) {
+                mediaSettings
+                    .frame(width: 330, alignment: .top)
+                siteSpecificSettings
+                    .frame(maxWidth: .infinity, alignment: .top)
+            }
 
             if let error = settingsStore.persistenceError {
                 Text(error)
@@ -195,44 +203,45 @@ private struct SiteSettingsPage: View {
     }
 
     private var siteSelector: some View {
-        SettingsCard(title: "当前站点") {
-            Menu {
-                ForEach(SiteID.allCases) { site in
-                    Button {
-                        selectedSite = site
-                    } label: {
-                        Label {
-                            Text(site.displayName)
-                        } icon: {
-                            SiteIconView(siteID: site, size: 16)
-                        }
+        Menu {
+            ForEach(SiteID.allCases) { site in
+                Button {
+                    selectedSite = site
+                } label: {
+                    Label {
+                        Text(site.displayName)
+                    } icon: {
+                        SiteIconView(siteID: site, size: 16)
                     }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    SiteIconView(siteID: selectedSite, size: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(selectedSite.displayName)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text("编辑该站点的独立下载规则")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.subdued)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(AppTheme.subdued)
-                }
-                .padding(.horizontal, 14)
-                .frame(height: 56)
-                .background(AppTheme.raisedPanel, in: RoundedRectangle(cornerRadius: 10))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border)
                 }
             }
-            .buttonStyle(.plain)
+        } label: {
+            HStack(spacing: 12) {
+                SiteIconView(siteID: selectedSite, size: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(selectedSite.displayName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("当前站点 · 编辑独立下载规则")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subdued)
+                }
+                Spacer()
+                Text("切换站点")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.subdued)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppTheme.subdued)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 54)
+            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.border)
+            }
         }
+        .buttonStyle(.plain)
     }
 
     private var mediaSettings: some View {
@@ -245,7 +254,7 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "自定义模板", detail: "使用 yt-dlp 模板字段") {
                     TextField("自定义模板", text: customTemplate)
                         .settingField()
-                        .frame(width: 280)
+                        .frame(width: 168)
                 }
             } else if let rule = filenameTemplate.wrappedValue.rule {
                 Text(rule)
@@ -278,19 +287,19 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "批量网页分页", detail: "例如 1-3,5；留空下载全部页面") {
                     TextField("1-3,5", text: $settingsStore.settings.sites.pornhub.pageSelection)
                         .settingField()
-                        .frame(width: 220)
+                        .frame(width: 180)
                 }
                 SettingsDivider()
                 SettingsRow(title: "账号", detail: "仅用于需要登录的内容") {
                     TextField("账号", text: $settingsStore.settings.sites.pornhub.username)
                         .settingField()
-                        .frame(width: 220)
+                        .frame(width: 180)
                 }
                 SettingsDivider()
                 SettingsRow(title: "密码", detail: "仅保存在当前运行会话") {
                     SecureField("密码", text: $appState.password)
                         .settingField()
-                        .frame(width: 220)
+                        .frame(width: 180)
                 }
                 cookieSettings(
                     enabled: $settingsStore.settings.sites.pornhub.useCookies,
@@ -303,7 +312,7 @@ private struct SiteSettingsPage: View {
                 SettingsRow(title: "播放列表序号", detail: "例如 1-20,25；留空下载全部视频") {
                     TextField("1-20,25", text: $settingsStore.settings.sites.youtube.playlistSelection)
                         .settingField()
-                        .frame(width: 220)
+                        .frame(width: 180)
                 }
                 SettingsDivider()
                 SettingsRow(title: "频道内容范围", detail: "频道链接需要采集的内容类型") {
@@ -334,7 +343,7 @@ private struct SiteSettingsPage: View {
                             text: $settingsStore.settings.sites.youtube.subtitleLanguages
                         )
                         .settingField()
-                        .frame(width: 240)
+                        .frame(width: 180)
                     }
                 }
                 SettingsDivider()
@@ -553,22 +562,21 @@ private struct SettingsPageContainer<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                 Text(subtitle)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.subdued)
             }
-            .padding(.horizontal, 30)
-            .padding(.top, 26)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
 
-            ScrollView {
-                VStack(spacing: 16) {
-                    content
-                }
-                .padding(.horizontal, 30)
-                .padding(.bottom, 28)
+            VStack(spacing: 12) {
+                content
             }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 20)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -579,14 +587,14 @@ private struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
                 .font(.system(size: 11, weight: .bold))
                 .tracking(1.1)
                 .foregroundStyle(AppTheme.orange)
             content
         }
-        .padding(18)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .appPanel()
     }
@@ -598,14 +606,18 @@ private struct SettingsRow<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(AppTheme.subdued)
+                    .lineLimit(1)
+                    .help(detail)
             }
+            .layoutPriority(1)
             Spacer(minLength: 16)
             content
         }
@@ -630,7 +642,7 @@ private struct SettingsPicker<Value>: View where Value: Hashable & Identifiable 
         }
         .labelsHidden()
         .pickerStyle(.menu)
-        .frame(width: 190, alignment: .trailing)
+        .frame(width: 165, alignment: .trailing)
     }
 }
 
@@ -640,7 +652,7 @@ private struct SettingFieldModifier: ViewModifier {
             .textFieldStyle(.plain)
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
-            .frame(height: 34)
+            .frame(height: 32)
             .background(AppTheme.raisedPanel, in: RoundedRectangle(cornerRadius: 7))
             .overlay {
                 RoundedRectangle(cornerRadius: 7).stroke(AppTheme.border)
@@ -661,8 +673,8 @@ struct OrangeButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: compact ? 14 : 15, weight: .bold))
             .foregroundStyle(.black)
-            .padding(.horizontal, compact ? 14 : 22)
-            .frame(height: compact ? 34 : 40)
+            .padding(.horizontal, compact ? 12 : 22)
+            .frame(height: compact ? 32 : 40)
             .background(AppTheme.orange.opacity(configuration.isPressed ? 0.78 : 1))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
